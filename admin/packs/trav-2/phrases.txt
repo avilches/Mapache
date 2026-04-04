@@ -1,0 +1,8 @@
+"Mi vuelo ha sido cancelado","My flight has been cancelled"
+"¿Cuánto cuesta el exceso de equipaje?","How much is the excess baggage charge?"
+"Quisiera una habitación con vistas al mar","I'd like a room with a sea view"
+"¿Me puede llamar a las siete?","Could you give me a wake-up call at seven?"
+"El aire acondicionado no funciona","The air conditioning isn't working"
+"¿Cuál es el horario de entrada?","What is the check-in time?"
+"Necesito un recibo por los gastos","I need a receipt for expenses"
+"¿Está incluido el desayuno?","Is breakfast included?"

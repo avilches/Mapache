@@ -1,0 +1,11 @@
+{
+  "id": "trav-3",
+  "themeId": "travel",
+  "themeName": "Viajes",
+  "themeIcon": "✈️",
+  "themeColor": "#859900",
+  "themeOrder": 2,
+  "title": "Avanzado",
+  "difficulty": 3,
+  "dateAdded": "2024-01-01"
+}

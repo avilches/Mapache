@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Generated audio cache (practice.py)
+audio_cache/
+admin/audio_cache/
+
+# Generated pack outputs (create_package.py)
+admin/packs/*/output/
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/

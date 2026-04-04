@@ -1,0 +1,11 @@
+{
+  "id": "greet-1",
+  "themeId": "greetings",
+  "themeName": "Saludos",
+  "themeIcon": "👋",
+  "themeColor": "#268bd2",
+  "themeOrder": 0,
+  "title": "Básico",
+  "difficulty": 1,
+  "dateAdded": "2024-01-01"
+}

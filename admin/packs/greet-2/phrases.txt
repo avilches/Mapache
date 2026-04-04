@@ -1,0 +1,8 @@
+"Mucho gusto en conocerte","Nice to meet you"
+"¿Cómo te llamas?","What's your name?"
+"Me llamo Juan","My name is Juan"
+"¿De dónde eres?","Where are you from?"
+"Soy de España","I'm from Spain"
+"¿Cuántos años tienes?","How old are you?"
+"Tengo treinta años","I'm thirty years old"
+"Encantado de conocerte","Pleased to meet you"

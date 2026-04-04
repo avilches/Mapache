@@ -1,0 +1,8 @@
+"Llevamos mucho tiempo sin vernos","It's been a long time since we last met"
+"¿Qué tal te ha ido?","How have things been going for you?"
+"Me alegra verte de nuevo","I'm glad to see you again"
+"Te presento a mi colega","Let me introduce you to my colleague"
+"Espero que todo vaya bien","I hope everything is going well"
+"Ha sido un placer hablar contigo","It has been a pleasure talking to you"
+"Quedamos para tomar un café","Let's meet up for a coffee"
+"Que tengas un buen día","Have a great day"

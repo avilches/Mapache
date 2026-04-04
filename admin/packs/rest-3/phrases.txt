@@ -1,0 +1,8 @@
+"He reservado a nombre de García","I have a reservation under García"
+"¿Me podría traer más pan, por favor?","Could you bring me more bread, please?"
+"Este vino marida muy bien con el pescado","This wine pairs very well with the fish"
+"El postre no estaba a la altura","The dessert was not up to standard"
+"¿Admiten tarjeta de crédito?","Do you accept credit cards?"
+"Nos gustaría celebrar un cumpleaños","We'd like to celebrate a birthday"
+"La espera ha merecido la pena","The wait was worth it"
+"Déjeme que le recomiende la especialidad de la casa","Let me recommend the house specialty"
