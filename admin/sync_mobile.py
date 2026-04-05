@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Sincroniza todos los packs de admin/packs/ con la app móvil.
+Sincroniza todos los levels de admin/levels/ con la app móvil.
 
 Qué hace:
-  1. Para cada pack en admin/packs/ (que tenga audio generado):
-     - Genera un ZIP en mobile/assets/packs/<id>.zip
+  1. Para cada level en admin/levels/ (que tenga audio generado):
+     - Genera un ZIP en mobile/assets/levels/<id>.zip
        Contenido: <id>/meta.json + <id>/phrases.json + <id>/audio/*.mp3
   2. Actualiza el bloque BUNDLED_ZIPS en mobile/src/store/appStore.ts
 
-Solo se incluyen packs que tengan audio generado (carpeta audio/ no vacía).
+Solo se incluyen levels que tengan audio generado (carpeta audio/ no vacía).
 
 Uso: python sync_mobile.py
 """
@@ -18,26 +18,26 @@ import os
 import sys
 import zipfile
 
-PACKS_DIR = os.path.join(os.path.dirname(__file__), "packs")
+LEVELS_DIR = os.path.join(os.path.dirname(__file__), "levels")
 MOBILE_DIR = os.path.join(os.path.dirname(__file__), "..", "mobile")
-ASSETS_PACKS_OUT = os.path.join(MOBILE_DIR, "assets", "packs")
+ASSETS_LEVELS_OUT = os.path.join(MOBILE_DIR, "assets", "levels")
 APP_STORE_TS = os.path.join(MOBILE_DIR, "src", "store", "appStore.ts")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def load_pack(pack_id: str) -> dict | None:
-    pack_dir = os.path.join(PACKS_DIR, pack_id)
-    meta_path = os.path.join(pack_dir, "meta.json")
-    phrases_path = os.path.join(pack_dir, "phrases.txt")
-    audio_dir = os.path.join(pack_dir, "audio")
+def load_level(level_id: str) -> dict | None:
+    level_dir = os.path.join(LEVELS_DIR, level_id)
+    meta_path = os.path.join(level_dir, "meta.json")
+    phrases_path = os.path.join(level_dir, "phrases.txt")
+    audio_dir = os.path.join(level_dir, "audio")
 
     if not os.path.exists(meta_path) or not os.path.exists(phrases_path):
         return None
 
     mp3s = sorted(f for f in os.listdir(audio_dir) if f.endswith(".mp3")) if os.path.isdir(audio_dir) else []
     if not mp3s:
-        print(f"  [skip] {pack_id}: sin audio — ejecuta generate_audio.py {pack_id} primero")
+        print(f"  [skip] {level_id}: sin audio — ejecuta generate_audio.py {level_id} primero")
         return None
 
     with open(meta_path, "r", encoding="utf-8") as f:
@@ -51,55 +51,55 @@ def load_pack(pack_id: str) -> dict | None:
                 phrases.append({"spanish": row[0].strip(), "english": row[1].strip()})
 
     if len(phrases) != len(mp3s):
-        print(f"  [warn] {pack_id}: {len(phrases)} frases pero {len(mp3s)} MP3 — puede que falte regenerar audio")
+        print(f"  [warn] {level_id}: {len(phrases)} frases pero {len(mp3s)} MP3 — puede que falte regenerar audio")
 
     return {"meta": meta, "phrases": phrases, "mp3s": mp3s}
 
 
-def load_all_packs() -> list[dict]:
-    pack_ids = sorted(d for d in os.listdir(PACKS_DIR) if os.path.isdir(os.path.join(PACKS_DIR, d)))
-    packs = []
-    for pack_id in pack_ids:
-        pack = load_pack(pack_id)
-        if pack:
-            packs.append(pack)
-    return packs
+def load_all_levels() -> list[dict]:
+    level_ids = sorted(d for d in os.listdir(LEVELS_DIR) if os.path.isdir(os.path.join(LEVELS_DIR, d)))
+    levels = []
+    for level_id in level_ids:
+        level = load_level(level_id)
+        if level:
+            levels.append(level)
+    return levels
 
 
 # ── step 1: generate ZIPs ────────────────────────────────────────────────────
 
-def create_pack_zip(pack: dict) -> None:
-    pack_id = pack["meta"]["id"]
-    pack_dir = os.path.join(PACKS_DIR, pack_id)
-    zip_path = os.path.join(ASSETS_PACKS_OUT, f"{pack_id}.zip")
+def create_level_zip(level: dict) -> None:
+    level_id = level["meta"]["id"]
+    level_dir = os.path.join(LEVELS_DIR, level_id)
+    zip_path = os.path.join(ASSETS_LEVELS_OUT, f"{level_id}.zip")
 
-    phrases_json = json.dumps(pack["phrases"], ensure_ascii=False, indent=2)
+    phrases_json = json.dumps(level["phrases"], ensure_ascii=False, indent=2)
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         # meta.json
-        zf.write(os.path.join(pack_dir, "meta.json"), f"{pack_id}/meta.json")
+        zf.write(os.path.join(level_dir, "meta.json"), f"{level_id}/meta.json")
         # phrases.json (converted from phrases.txt)
-        zf.writestr(f"{pack_id}/phrases.json", phrases_json.encode("utf-8"))
+        zf.writestr(f"{level_id}/phrases.json", phrases_json.encode("utf-8"))
         # audio files
-        for mp3 in pack["mp3s"]:
-            zf.write(os.path.join(pack_dir, "audio", mp3), f"{pack_id}/audio/{mp3}")
+        for mp3 in level["mp3s"]:
+            zf.write(os.path.join(level_dir, "audio", mp3), f"{level_id}/audio/{mp3}")
 
-    print(f"  [zip] {pack_id}: {len(pack['phrases'])} frases, {len(pack['mp3s'])} mp3 → {zip_path}")
+    print(f"  [zip] {level_id}: {len(level['phrases'])} frases, {len(level['mp3s'])} mp3 → {zip_path}")
 
 
 # ── step 2: update BUNDLED_ZIPS in appStore.ts ───────────────────────────────
 
-def generate_bundled_zips_block(packs: list[dict]) -> str:
+def generate_bundled_zips_block(levels: list[dict]) -> str:
     lines = []
     lines.append("const BUNDLED_ZIPS: Record<string, any> = {")
-    for pack in packs:
-        pack_id = pack["meta"]["id"]
-        lines.append(f"  {repr(pack_id)}: require('../../assets/packs/{pack_id}.zip'),")
+    for level in levels:
+        level_id = level["meta"]["id"]
+        lines.append(f"  {repr(level_id)}: require('../../assets/levels/{level_id}.zip'),")
     lines.append("};")
     return "\n".join(lines)
 
 
-def update_app_store_ts(packs: list[dict]) -> None:
+def update_app_store_ts(levels: list[dict]) -> None:
     with open(APP_STORE_TS, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -113,7 +113,7 @@ def update_app_store_ts(packs: list[dict]) -> None:
         print("  [error] No se encontró el bloque BUNDLED_ZIPS en appStore.ts")
         sys.exit(1)
 
-    new_block = START_MARKER + "\n" + generate_bundled_zips_block(packs) + "\n" + END_MARKER
+    new_block = START_MARKER + "\n" + generate_bundled_zips_block(levels) + "\n" + END_MARKER
     new_content = content[:start] + new_block + content[end + len(END_MARKER):]
 
     with open(APP_STORE_TS, "w", encoding="utf-8") as f:
@@ -123,24 +123,24 @@ def update_app_store_ts(packs: list[dict]) -> None:
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print("Leyendo packs...")
-    packs = load_all_packs()
-    if not packs:
-        print("No hay packs con audio. Ejecuta generate_audio.py primero.")
+    print("Leyendo levels...")
+    levels = load_all_levels()
+    if not levels:
+        print("No hay levels con audio. Ejecuta generate_audio.py primero.")
         sys.exit(1)
-    print(f"  {len(packs)} packs listos: {[p['meta']['id'] for p in packs]}")
+    print(f"  {len(levels)} levels listos: {[l['meta']['id'] for l in levels]}")
 
-    os.makedirs(ASSETS_PACKS_OUT, exist_ok=True)
+    os.makedirs(ASSETS_LEVELS_OUT, exist_ok=True)
 
-    print("\nGenerando ZIPs → mobile/assets/packs/")
-    for pack in packs:
-        create_pack_zip(pack)
+    print("\nGenerando ZIPs → mobile/assets/levels/")
+    for level in levels:
+        create_level_zip(level)
 
     print("\nActualizando BUNDLED_ZIPS en mobile/src/store/appStore.ts")
-    update_app_store_ts(packs)
+    update_app_store_ts(levels)
 
-    total_phrases = sum(len(p["phrases"]) for p in packs)
-    print(f"\n✅ Sync completado: {len(packs)} packs, {total_phrases} frases.")
+    total_phrases = sum(len(l["phrases"]) for l in levels)
+    print(f"\n✅ Sync completado: {len(levels)} levels, {total_phrases} frases.")
     print("   Reinicia la app (no hace falta reinstalar).")
 
 

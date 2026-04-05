@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-validate_packs.py — Valida que los packs estén correctos en ambas fuentes:
-  - admin/packs/          (fuente de verdad)
-  - mobile/assets/packs/  (ZIPs generados)
+validate_levels.py — Valida que los levels estén correctos en ambas fuentes:
+  - admin/levels/          (fuente de verdad)
+  - mobile/assets/levels/  (ZIPs generados)
 
 Uso:
-  python3 admin/validate_packs.py   # desde el root del proyecto
-  python3 validate_packs.py         # desde admin/
+  python3 admin/validate_levels.py   # desde el root del proyecto
+  python3 validate_levels.py         # desde admin/
 
 Exit code 0 = todo OK, 1 = hay errores.
 """
@@ -28,15 +28,15 @@ if os.path.basename(SCRIPT_DIR) == "admin":
 else:
     ROOT = SCRIPT_DIR
 
-PACKS_DIR = os.path.join(ROOT, "admin", "packs")
-ZIPS_DIR = os.path.join(ROOT, "mobile", "assets", "packs")
+PACKS_DIR = os.path.join(ROOT, "admin", "levels")
+ZIPS_DIR = os.path.join(ROOT, "mobile", "assets", "levels")
 APP_STORE_TS = os.path.join(ROOT, "mobile", "src", "store", "appStore.ts")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 REQUIRED_META_FIELDS = {
-    "id", "themeId", "themeName", "themeIcon", "themeColor",
-    "themeOrder", "title", "difficulty", "sort_order", "dateAdded",
+    "id", "topicId", "topicName", "topicIcon", "topicColor",
+    "topicOrder", "title", "difficulty", "sort_order", "dateAdded",
 }
 VALID_DIFFICULTIES = {1, 2, 3}
 PACK_NAME_RE = re.compile(r"^[a-z0-9]+-(?:basic|interm|adv)-\d+$")
@@ -74,9 +74,9 @@ def parse_bundled_zips(ts_source: str) -> list[str]:
 
 # ─── Validación admin/packs/ ──────────────────────────────────────────────────
 
-def validate_admin_packs() -> tuple[list[dict], list[str]]:
-    """Valida todos los packs en admin/packs/.
-    Devuelve (pack_infos, errores_globales)."""
+def validate_admin_levels() -> tuple[list[dict], list[str]]:
+    """Valida todos los levels en admin/levels/.
+    Devuelve (level_infos, errores_globales)."""
     global_errors = []
 
     if not os.path.isdir(PACKS_DIR):
@@ -89,7 +89,7 @@ def validate_admin_packs() -> tuple[list[dict], list[str]]:
     )
 
     if not pack_dirs:
-        global_errors.append("No se encontraron packs en admin/packs/")
+        global_errors.append("No se encontraron levels en admin/levels/")
         return [], global_errors
 
     results = []
@@ -164,7 +164,7 @@ def validate_admin_packs() -> tuple[list[dict], list[str]]:
 # ─── Validación mobile/assets/packs/ ─────────────────────────────────────────
 
 def validate_zips(admin_packs: list[dict]) -> tuple[list[dict], list[str]]:
-    """Valida todos los ZIPs en mobile/assets/packs/.
+    """Valida todos los ZIPs en mobile/assets/levels/.
     Devuelve (zip_infos, errores_globales)."""
     global_errors = []
 
@@ -261,7 +261,7 @@ def validate_zips(admin_packs: list[dict]) -> tuple[list[dict], list[str]]:
                 if zip_meta and pack_id in admin_meta_by_id:
                     admin_meta = admin_meta_by_id[pack_id]
                     mismatches = []
-                    for field in ("id", "themeId", "title", "difficulty", "sort_order"):
+                    for field in ("id", "topicId", "title", "difficulty", "sort_order"):
                         if zip_meta.get(field) != admin_meta.get(field):
                             mismatches.append(
                                 f"{field}: ZIP={zip_meta.get(field)!r} "
@@ -296,13 +296,13 @@ def validate_consistency(
     # Packs con audio que no tienen ZIP
     missing_zips = admin_with_audio - zip_ids
     for pid in sorted(missing_zips):
-        errors.append(f"admin/{pid} tiene audio pero falta {pid}.zip en mobile/assets/packs/")
+        errors.append(f"admin/{pid} tiene audio pero falta {pid}.zip en mobile/assets/levels/")
 
-    # ZIPs huérfanos (sin pack en admin/)
+    # ZIPs huérfanos (sin level en admin/)
     admin_ids = {p["id"] for p in admin_packs}
     orphan_zips = zip_ids - admin_ids
     for pid in sorted(orphan_zips):
-        errors.append(f"{pid}.zip existe en mobile/assets/packs/ pero no hay pack en admin/packs/{pid}/")
+        errors.append(f"{pid}.zip existe en mobile/assets/levels/ pero no hay level en admin/levels/{pid}/")
 
     # BUNDLED_ZIPS en appStore.ts
     bundled_errors = []
@@ -338,11 +338,11 @@ def validate_consistency(
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main() -> int:
-    print("Validando packs...\n")
+    print("Validando levels...\n")
     total_errors = 0
 
-    # 1. admin/packs/
-    admin_packs, admin_global_errors = validate_admin_packs()
+    # 1. admin/levels/
+    admin_packs, admin_global_errors = validate_admin_levels()
     for e in admin_global_errors:
         print(f"  ERROR GLOBAL: {e}")
         total_errors += 1
@@ -350,7 +350,7 @@ def main() -> int:
     admin_ids = {p["id"] for p in admin_packs}
     packs_without_audio = [p for p in admin_packs if not p["has_audio"]]
 
-    print(f"admin/packs/ ({len(admin_packs)} packs):")
+    print(f"admin/levels/ ({len(admin_packs)} levels):")
     for p in admin_packs:
         errs = p["errors"]
         if errs:
@@ -362,13 +362,13 @@ def main() -> int:
             audio_part = f", {p['mp3_count']} mp3" if p["has_audio"] else " (sin audio)"
             print(f"  ✓ {p['id']}: {p['phrase_count']} frases{audio_part}")
 
-    # 2. mobile/assets/packs/
+    # 2. mobile/assets/levels/
     zip_infos, zip_global_errors = validate_zips(admin_packs)
     for e in zip_global_errors:
         print(f"\n  ERROR GLOBAL: {e}")
         total_errors += 1
 
-    print(f"\nmobile/assets/packs/ ({len(zip_infos)} ZIPs):")
+    print(f"\nmobile/assets/levels/ ({len(zip_infos)} ZIPs):")
     for z in zip_infos:
         errs = z["errors"]
         if errs:
@@ -392,7 +392,7 @@ def main() -> int:
     orphan_zips = zip_ids - admin_ids
 
     if not missing_zips and not orphan_zips:
-        print("  ✓ Todos los packs con audio tienen su ZIP correspondiente")
+        print("  ✓ Todos los levels con audio tienen su ZIP correspondiente")
     for e in [
         e for e in consistency_errors
         if "BUNDLED_ZIPS" not in e and "appStore" not in e
@@ -412,7 +412,7 @@ def main() -> int:
                 ts_source = f.read()
             bundled_ids = parse_bundled_zips(ts_source)
             print(
-                f"  ✓ BUNDLED_ZIPS en appStore.ts lista {len(bundled_ids)} packs correctamente"
+                f"  ✓ BUNDLED_ZIPS en appStore.ts lista {len(bundled_ids)} levels correctamente"
             )
         else:
             print("  ✗ No se encontró appStore.ts")
@@ -428,11 +428,11 @@ def main() -> int:
 
     if total_errors == 0:
         print(
-            f"✅ Todo correcto: {len(admin_packs)} packs, {total_phrases} frases"
+            f"✅ Todo correcto: {len(admin_packs)} levels, {total_phrases} frases"
         )
         if packs_without_audio:
             names = ", ".join(p["id"] for p in packs_without_audio)
-            print(f"   (packs sin audio: {names})")
+            print(f"   (levels sin audio: {names})")
     else:
         noun = "error" if total_errors == 1 else "errores"
         print(f"❌ {total_errors} {noun} encontrado{'s' if total_errors != 1 else ''}")
