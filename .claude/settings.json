@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "mapache-dev": {
+      "command": "node",
+      "args": ["tools/mcp-server/dist/index.js"],
+      "cwd": "/Users/avilches/Library/Mobile Documents/com~apple~CloudDocs/Shared/Proy/Mapache"
+    }
+  }
+}

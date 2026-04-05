@@ -3,28 +3,25 @@
 Sincroniza todos los packs de admin/packs/ con la app móvil.
 
 Qué hace:
-  1. Copia packs/<id>/audio/*.mp3  →  mobile/assets/audio/<id>/*.mp3
-  2. Regenera mobile/src/data/seed.ts       (themes, levels, phrases)
-  3. Regenera el bloque BUNDLED_AUDIO en mobile/src/hooks/useAudio.ts
+  1. Para cada pack en admin/packs/ (que tenga audio generado):
+     - Genera un ZIP en mobile/assets/packs/<id>.zip
+       Contenido: <id>/meta.json + <id>/phrases.json + <id>/audio/*.mp3
+  2. Actualiza el bloque BUNDLED_ZIPS en mobile/src/store/appStore.ts
 
 Solo se incluyen packs que tengan audio generado (carpeta audio/ no vacía).
 
 Uso: python sync_mobile.py
-
-Después de ejecutar:
-  - Reinstala o limpia los datos de la app para que se resiembre la BD.
 """
 import csv
 import json
 import os
-import shutil
 import sys
+import zipfile
 
 PACKS_DIR = os.path.join(os.path.dirname(__file__), "packs")
 MOBILE_DIR = os.path.join(os.path.dirname(__file__), "..", "mobile")
-AUDIO_OUT = os.path.join(MOBILE_DIR, "assets", "audio")
-SEED_TS = os.path.join(MOBILE_DIR, "src", "data", "seed.ts")
-USE_AUDIO_TS = os.path.join(MOBILE_DIR, "src", "hooks", "useAudio.ts")
+ASSETS_PACKS_OUT = os.path.join(MOBILE_DIR, "assets", "packs")
+APP_STORE_TS = os.path.join(MOBILE_DIR, "src", "store", "appStore.ts")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -69,154 +66,58 @@ def load_all_packs() -> list[dict]:
     return packs
 
 
-# ── step 1: copy audio ───────────────────────────────────────────────────────
+# ── step 1: generate ZIPs ────────────────────────────────────────────────────
 
-def copy_audio(packs: list[dict]) -> None:
-    for pack in packs:
-        pack_id = pack["meta"]["id"]
-        src_dir = os.path.join(PACKS_DIR, pack_id, "audio")
-        dst_dir = os.path.join(AUDIO_OUT, pack_id)
-        os.makedirs(dst_dir, exist_ok=True)
+def create_pack_zip(pack: dict) -> None:
+    pack_id = pack["meta"]["id"]
+    pack_dir = os.path.join(PACKS_DIR, pack_id)
+    zip_path = os.path.join(ASSETS_PACKS_OUT, f"{pack_id}.zip")
+
+    phrases_json = json.dumps(pack["phrases"], ensure_ascii=False, indent=2)
+
+    with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        # meta.json
+        zf.write(os.path.join(pack_dir, "meta.json"), f"{pack_id}/meta.json")
+        # phrases.json (converted from phrases.txt)
+        zf.writestr(f"{pack_id}/phrases.json", phrases_json.encode("utf-8"))
+        # audio files
         for mp3 in pack["mp3s"]:
-            src = os.path.join(src_dir, mp3)
-            dst = os.path.join(dst_dir, mp3)
-            shutil.copy2(src, dst)
-        print(f"  [audio] {pack_id}: {len(pack['mp3s'])} MP3")
+            zf.write(os.path.join(pack_dir, "audio", mp3), f"{pack_id}/audio/{mp3}")
+
+    print(f"  [zip] {pack_id}: {len(pack['phrases'])} frases, {len(pack['mp3s'])} mp3 → {zip_path}")
 
 
-# ── step 2: regenerate seed.ts ───────────────────────────────────────────────
+# ── step 2: update BUNDLED_ZIPS in appStore.ts ───────────────────────────────
 
-def _ts_str(s: str) -> str:
-    return "'" + s.replace("\\", "\\\\").replace("'", "\\'") + "'"
-
-
-def generate_seed_ts(packs: list[dict]) -> str:
-    # Deduplicate themes, sorted by themeOrder
-    seen_themes: dict[str, dict] = {}
-    for pack in packs:
-        m = pack["meta"]
-        tid = m["themeId"]
-        if tid not in seen_themes:
-            seen_themes[tid] = {
-                "id": tid,
-                "name": m["themeName"],
-                "icon": m["themeIcon"],
-                "color": m["themeColor"],
-                "sort_order": m["themeOrder"],
-            }
-    themes = sorted(seen_themes.values(), key=lambda t: t["sort_order"])
-
+def generate_bundled_zips_block(packs: list[dict]) -> str:
     lines = []
-    lines.append("import { getDb } from '../db/schema';")
-    lines.append("import { insertTheme, insertLevel, insertPhrase } from '../db/queries';")
-    lines.append("")
-
-    # THEMES
-    lines.append("const THEMES = [")
-    for t in themes:
-        lines.append(
-            f"  {{ id: {_ts_str(t['id'])}, name: {_ts_str(t['name'])}, "
-            f"icon: {_ts_str(t['icon'])}, color: {_ts_str(t['color'])}, "
-            f"sort_order: {t['sort_order']} }},"
-        )
-    lines.append("];")
-    lines.append("")
-
-    # LEVELS
-    lines.append("const LEVELS = [")
-    for pack in packs:
-        m = pack["meta"]
-        n = len(pack["phrases"])
-        lines.append(
-            f"  {{ id: {_ts_str(m['id'])}, theme_id: {_ts_str(m['themeId'])}, "
-            f"title: {_ts_str(m['title'])}, difficulty: {m['difficulty']} as const, "
-            f"date_added: {_ts_str(m['dateAdded'])}, total_phrases: {n}, source: 'bundled' }},"
-        )
-    lines.append("];")
-    lines.append("")
-
-    # PHRASES
-    lines.append(
-        "const PHRASES: { id: string; level_id: string; spanish: string; "
-        "english: string; audio_path: string; sort_order: number }[] = ["
-    )
+    lines.append("const BUNDLED_ZIPS: Record<string, any> = {")
     for pack in packs:
         pack_id = pack["meta"]["id"]
-        lines.append(f"  // {pack_id}")
-        for i, phrase in enumerate(pack["phrases"], start=1):
-            phrase_id = f"{pack_id}-{i}"
-            sp = _ts_str(phrase["spanish"])
-            en = _ts_str(phrase["english"])
-            ap = _ts_str(f"bundled:{pack_id}:{i}")
-            lines.append(
-                f"  {{ id: {_ts_str(phrase_id)}, level_id: {_ts_str(pack_id)}, "
-                f"spanish: {sp}, english: {en}, audio_path: {ap}, sort_order: {i} }},"
-            )
-        lines.append("")
-    lines.append("];")
-    lines.append("")
-
-    # seedDatabase function (unchanged logic)
-    lines.append("let seeded = false;")
-    lines.append("")
-    lines.append("export async function seedDatabase(): Promise<void> {")
-    lines.append("  if (seeded) return;")
-    lines.append("")
-    lines.append("  const db = await getDb();")
-    lines.append("  const existing = await db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM themes');")
-    lines.append("  if (existing && existing.count > 0) {")
-    lines.append("    seeded = true;")
-    lines.append("    return;")
-    lines.append("  }")
-    lines.append("")
-    lines.append("  for (const theme of THEMES) await insertTheme(theme);")
-    lines.append("  for (const level of LEVELS) await insertLevel(level);")
-    lines.append("  for (const phrase of PHRASES) await insertPhrase(phrase);")
-    lines.append("")
-    lines.append("  seeded = true;")
-    lines.append("}")
-    lines.append("")
-
-    return "\n".join(lines)
-
-
-# ── step 3: regenerate BUNDLED_AUDIO in useAudio.ts ─────────────────────────
-
-def generate_bundled_audio_block(packs: list[dict]) -> str:
-    lines = []
-    lines.append("const BUNDLED_AUDIO: Record<string, any> = {")
-    for pack in packs:
-        pack_id = pack["meta"]["id"]
-        for i in range(1, len(pack["phrases"]) + 1):
-            key = f"bundled:{pack_id}:{i}"
-            path = f"../../assets/audio/{pack_id}/{i:03d}.mp3"
-            lines.append(f"  {repr(key)}: require({repr(path)}),")
+        lines.append(f"  {repr(pack_id)}: require('../../assets/packs/{pack_id}.zip'),")
     lines.append("};")
     return "\n".join(lines)
 
 
-def update_use_audio_ts(packs: list[dict]) -> None:
-    with open(USE_AUDIO_TS, "r", encoding="utf-8") as f:
-        lines = f.readlines()
+def update_app_store_ts(packs: list[dict]) -> None:
+    with open(APP_STORE_TS, "r", encoding="utf-8") as f:
+        content = f.read()
 
-    start = None
-    end = None
-    for i, line in enumerate(lines):
-        if "const BUNDLED_AUDIO: Record<string, any> = {" in line:
-            start = i
-        if start is not None and i > start and line.strip() == "};":
-            end = i
-            break
+    START_MARKER = "// ─── BUNDLED ZIPS — generated by admin/sync_mobile.py ────────────────────────"
+    END_MARKER   = "// ─── END BUNDLED ZIPS ─────────────────────────────────────────────────────────"
 
-    if start is None or end is None:
-        print("  [error] No se encontró el bloque BUNDLED_AUDIO en useAudio.ts")
+    start = content.find(START_MARKER)
+    end = content.find(END_MARKER)
+
+    if start == -1 or end == -1:
+        print("  [error] No se encontró el bloque BUNDLED_ZIPS en appStore.ts")
         sys.exit(1)
 
-    new_block = generate_bundled_audio_block(packs) + "\n"
-    new_lines = lines[:start] + [new_block] + lines[end + 1:]
+    new_block = START_MARKER + "\n" + generate_bundled_zips_block(packs) + "\n" + END_MARKER
+    new_content = content[:start] + new_block + content[end + len(END_MARKER):]
 
-    with open(USE_AUDIO_TS, "w", encoding="utf-8") as f:
-        f.writelines(new_lines)
+    with open(APP_STORE_TS, "w", encoding="utf-8") as f:
+        f.write(new_content)
 
 
 # ── main ─────────────────────────────────────────────────────────────────────
@@ -229,20 +130,18 @@ def main():
         sys.exit(1)
     print(f"  {len(packs)} packs listos: {[p['meta']['id'] for p in packs]}")
 
-    print("\nCopiando audio → mobile/assets/audio/")
-    copy_audio(packs)
+    os.makedirs(ASSETS_PACKS_OUT, exist_ok=True)
 
-    print("\nRegenerando mobile/src/data/seed.ts")
-    seed_content = generate_seed_ts(packs)
-    with open(SEED_TS, "w", encoding="utf-8") as f:
-        f.write(seed_content)
+    print("\nGenerando ZIPs → mobile/assets/packs/")
+    for pack in packs:
+        create_pack_zip(pack)
 
-    print("Regenerando BUNDLED_AUDIO en mobile/src/hooks/useAudio.ts")
-    update_use_audio_ts(packs)
+    print("\nActualizando BUNDLED_ZIPS en mobile/src/store/appStore.ts")
+    update_app_store_ts(packs)
 
     total_phrases = sum(len(p["phrases"]) for p in packs)
     print(f"\n✅ Sync completado: {len(packs)} packs, {total_phrases} frases.")
-    print("   ⚠️  Reinstala o limpia los datos de la app para que se resiembre la BD.")
+    print("   Reinicia la app (no hace falta reinstalar).")
 
 
 if __name__ == "__main__":

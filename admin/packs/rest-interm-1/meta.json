@@ -1,0 +1,12 @@
+{
+  "id": "rest-interm-1",
+  "themeId": "restaurant",
+  "themeName": "Restaurante",
+  "themeIcon": "🍽️",
+  "themeColor": "#2aa198",
+  "themeOrder": 1,
+  "title": "Menú y preferencias",
+  "difficulty": 2,
+  "sort_order": 2,
+  "dateAdded": "2024-01-01"
+}

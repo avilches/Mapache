@@ -14,14 +14,14 @@ admin/                       Scripts Python de gestión de contenido
 ├── practice.py              TUI de práctica en terminal (sin móvil)
 ├── requirements.txt         gtts, textual, rich
 └── packs/                   Fuente de verdad de todo el contenido
-    ├── greet-1/             Un pack = una carpeta
+    ├── greet-basic-1/       Un pack = una carpeta
     │   ├── meta.json        Metadatos del pack y su tema
     │   ├── phrases.txt      Frases CSV: "español","english"
     │   └── audio/           MP3 generados: 001.mp3, 002.mp3...
-    ├── greet-2/ greet-3/
-    ├── rest-1/ rest-2/ rest-3/
-    ├── trav-1/ trav-2/ trav-3/
-    └── daily-life-1/
+    ├── greet-basic-2/ greet-interm-1/ greet-adv-1/
+    ├── rest-basic-1/ rest-interm-1/ rest-adv-1/
+    ├── trav-basic-1/ trav-interm-1/ trav-adv-1/
+    └── daily-interm-1/
 
 mobile/                      App React Native + Expo
 ├── App.tsx                  Entrada, init DB, navegación
@@ -32,7 +32,7 @@ mobile/                      App React Native + Expo
     ├── db/schema.ts         initDb(), getDb()
     ├── db/queries.ts        Todas las funciones de lectura/escritura
     ├── theme/index.ts       Paletas solarizadas + useTheme()
-    ├── store/settingsStore  Zustand: themeMode
+    ├── store/settingsStore  Zustand: themeMode, difficultyFilter, seenLevelIds
     ├── utils/downloadLevel  Descarga e instala niveles por URL
     ├── components/PhraseCard Card animada con gestos
     └── screens/             Home, LevelList, Play, Settings
@@ -42,6 +42,23 @@ mobile/                      App React Native + Expo
 
 ## Gestión de contenido (admin/)
 
+### Convención de nombres de packs
+
+El ID de un pack sigue el formato: `<tema>-<dificultad>-<número>`
+
+- **`<tema>`**: prefijo corto del tema (`greet`, `rest`, `trav`, `daily`...)
+- **`<dificultad>`**: `basic` | `interm` | `adv` (1, 2, 3 respectivamente)
+- **`<número>`**: orden dentro de la serie del mismo tema y dificultad (1, 2, 3...)
+
+```
+greet-basic-1   → saludos, básico, pack nº1
+greet-basic-2   → saludos, básico, pack nº2  (continuación de la serie)
+greet-interm-1  → saludos, intermedio, pack nº1
+trav-adv-2      → viajes, avanzado, pack nº2
+```
+
+El sufijo numérico es **orden de secuencia**, no dificultad. La dificultad va en el nombre y en el campo `difficulty` de `meta.json`. Esto permite añadir nuevos packs a una serie sin alterar el significado de los existentes.
+
 ### Flujo completo para añadir un pack nuevo
 
 ```bash
@@ -49,12 +66,12 @@ cd admin
 source .venv/bin/activate    # o: python3 -m venv .venv && pip install -r requirements.txt
 
 # 1. Crear scaffold
-python new_pack.py greet-4
+python new_pack.py greet-basic-2
 
-# 2. Editar packs/greet-4/meta.json y rellenar packs/greet-4/phrases.txt
+# 2. Editar packs/greet-basic-2/meta.json y rellenar packs/greet-basic-2/phrases.txt
 
 # 3. Generar audio
-python generate_audio.py greet-4
+python generate_audio.py greet-basic-2
 
 # 4. Sincronizar con la app
 python sync_mobile.py
@@ -62,32 +79,35 @@ python sync_mobile.py
 # 5. Reinstalar la app (o limpiar datos) para que se resiembre la BD
 ```
 
+Los packs nuevos aparecen con badge **¡Nuevo!** en la app durante los 30 días siguientes a su `dateAdded` (si el usuario no los ha abierto todavía).
+
 ### Series y temas
 
-Los packs se agrupan por `themeId` en `meta.json`. Todos los packs con el mismo `themeId` aparecen bajo el mismo tab en la app. El sufijo `-1`, `-2`, `-3` en el ID del pack es solo convención de orden/dificultad.
+Los packs se agrupan por `themeId` en `meta.json`. Todos los packs con el mismo `themeId` aparecen bajo el mismo tab. El `sort_order` controla el orden en la lista.
 
 ```
-themeId: "greetings"  →  greet-1, greet-2, greet-3
-themeId: "restaurant" →  rest-1, rest-2, rest-3
-themeId: "travel"     →  trav-1, trav-2, trav-3
-themeId: "daily"      →  daily-life-1, daily-life-2...
+themeId: "greetings"  →  greet-basic-1, greet-basic-2, greet-interm-1, greet-adv-1
+themeId: "restaurant" →  rest-basic-1, rest-interm-1, rest-adv-1
+themeId: "travel"     →  trav-basic-1, trav-interm-1, trav-adv-1
+themeId: "daily"      →  daily-interm-1, daily-interm-2...
 ```
 
-Para añadir a una serie existente: usa el mismo `themeId`. Para una nueva serie: nuevo `themeId` + nuevo `themeOrder`.
+Para añadir a una serie existente: usa el mismo `themeId` y el siguiente `sort_order`. Para una nueva serie: nuevo `themeId` + nuevo `themeOrder`.
 
 ### Formato de meta.json
 
 ```json
 {
-  "id":         "greet-4",       — ID único del pack (= nombre del directorio)
-  "themeId":    "greetings",     — Agrupa el pack bajo un tema/tab
-  "themeName":  "Saludos",       — Nombre visible (solo si el tema es nuevo)
-  "themeIcon":  "👋",            — Emoji del tema (solo si el tema es nuevo)
-  "themeColor": "#268bd2",       — Color hex del tema (solo si el tema es nuevo)
-  "themeOrder": 0,               — Orden del tab (solo si el tema es nuevo)
-  "title":      "Experto",       — Título del nivel en la app
-  "difficulty": 4,               — 1=básico 2=intermedio 3=avanzado
-  "dateAdded":  "2026-04-04"     — Fecha YYYY-MM-DD
+  "id":         "greet-basic-2",  — ID único del pack (= nombre del directorio)
+  "themeId":    "greetings",      — Agrupa el pack bajo un tema/tab
+  "themeName":  "Saludos",        — Nombre visible (solo si el tema es nuevo)
+  "themeIcon":  "👋",             — Emoji del tema (solo si el tema es nuevo)
+  "themeColor": "#268bd2",        — Color hex del tema (solo si el tema es nuevo)
+  "themeOrder": 0,                — Orden del tab (solo si el tema es nuevo)
+  "title":      "Saludos en el trabajo", — Título descriptivo del pack
+  "difficulty": 1,                — 1=básico 2=intermedio 3=avanzado
+  "sort_order": 2,                — Posición en la lista del tema (único por tema)
+  "dateAdded":  "2026-04-04"      — Fecha YYYY-MM-DD
 }
 ```
 
@@ -113,7 +133,7 @@ Solo se sincronizan packs que tienen la carpeta `audio/` con MP3s. Si un pack no
 ### practice.py — herramienta de escritorio
 
 ```bash
-python practice.py packs/daily-life-1/phrases.txt
+python practice.py packs/daily-interm-1/phrases.txt
 ```
 
 TUI en el terminal para practicar frases. Precede al móvil. El audio se genera y cachea en `admin/audio_cache/`.
@@ -141,7 +161,7 @@ TUI en el terminal para practicar frases. Precede al móvil. El audio se genera 
 
 ```sql
 themes         (id, name, icon, color, sort_order)
-levels         (id, theme_id, title, difficulty 1|2|3, date_added, total_phrases, source)
+levels         (id, theme_id, title, difficulty 1|2|3, sort_order, date_added, total_phrases, source)
 phrases        (id, level_id, spanish, english, audio_path, sort_order)
 phrase_progress (phrase_id, level_id, learned 0|1, seen_count)   PRIMARY KEY (phrase_id, level_id)
 level_progress  (level_id, completed_sessions, last_played_at)
@@ -163,6 +183,14 @@ HomeScreen
 ```
 
 Los tabs se generan dinámicamente desde la tabla `themes`, por lo que añadir un tema nuevo vía sync o descarga crea el tab automáticamente al reiniciar la app.
+
+### Filtro de dificultad
+
+El usuario puede filtrar globalmente por dificultad (Todos / Básico / Intermedio / Avanzado) desde SettingsScreen. El filtro se persiste en AsyncStorage y se aplica en `getLevelsByTheme()`. Cuando hay filtro activo, `LevelListScreen` muestra un badge indicando el nivel activo.
+
+### Badge ¡Nuevo!
+
+Los packs cuya `date_added` sea de los últimos 30 días muestran el badge **¡Nuevo!** en `LevelListScreen`, siempre que el usuario no haya abierto ese pack todavía. Al entrar en `PlayScreen` el pack se marca como visto y desaparece el badge. Los IDs vistos se almacenan en AsyncStorage (`seenLevelIds`).
 
 ### Flujo de juego (PlayScreen)
 
@@ -215,13 +243,14 @@ Desde SettingsScreen el usuario puede pegar una URL. La app descarga un JSON con
 ```json
 {
   "metadata": {
-    "id": "my-level",
-    "themeId": "greetings",
-    "themeName": "Saludos",
-    "themeIcon": "👋",
-    "themeColor": "#268bd2",
-    "title": "Avanzado 2",
+    "id": "trav-adv-2",
+    "themeId": "travel",
+    "themeName": "Viajes",
+    "themeIcon": "✈️",
+    "themeColor": "#859900",
+    "title": "Situaciones imprevistas 2",
     "difficulty": 3,
+    "sort_order": 4,
     "dateAdded": "2024-06-01"
   },
   "phrases": [{ "spanish": "...", "english": "..." }],

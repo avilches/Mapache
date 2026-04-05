@@ -1,0 +1,12 @@
+{
+  "id": "trav-adv-1",
+  "themeId": "travel",
+  "themeName": "Viajes",
+  "themeIcon": "✈️",
+  "themeColor": "#859900",
+  "themeOrder": 2,
+  "title": "Situaciones imprevistas",
+  "difficulty": 3,
+  "sort_order": 3,
+  "dateAdded": "2024-01-01"
+}

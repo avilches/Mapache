@@ -1,0 +1,12 @@
+{
+  "id": "rest-basic-1",
+  "themeId": "restaurant",
+  "themeName": "Restaurante",
+  "themeIcon": "🍽️",
+  "themeColor": "#2aa198",
+  "themeOrder": 1,
+  "title": "Pedir en el restaurante",
+  "difficulty": 1,
+  "sort_order": 1,
+  "dateAdded": "2024-01-01"
+}

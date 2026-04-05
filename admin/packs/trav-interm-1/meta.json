@@ -1,0 +1,12 @@
+{
+  "id": "trav-interm-1",
+  "themeId": "travel",
+  "themeName": "Viajes",
+  "themeIcon": "✈️",
+  "themeColor": "#859900",
+  "themeOrder": 2,
+  "title": "Hotel y transporte",
+  "difficulty": 2,
+  "sort_order": 2,
+  "dateAdded": "2024-01-01"
+}

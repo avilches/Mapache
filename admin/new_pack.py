@@ -4,16 +4,25 @@ Crea el scaffold de un nuevo pack.
 
 Uso: python new_pack.py <pack-id>
 
-Ejemplo: python new_pack.py greet-4
-
 Convención de IDs:
-  - Usa el mismo themeId que los packs existentes para añadir a una serie.
-  - Sufijo -1, -2, -3 indica nivel de dificultad dentro de la serie.
-  - Ejemplos: greet-4, daily-2, work-1
+  <tema>-<dificultad>-<número>
+
+  La dificultad forma parte del nombre del pack (basic, interm, adv).
+  El número es el orden dentro de la serie del mismo tema y dificultad.
+
+  Ejemplos:
+    greet-basic-2    → saludos, básico, segundo pack
+    trav-interm-1    → viajes, intermedio, primer pack
+    rest-adv-2       → restaurante, avanzado, segundo pack
+    work-basic-1     → trabajo (nuevo tema), básico, primer pack
+
+  Para añadir a una serie existente: usa el mismo themeId.
+  Para una nueva serie: nuevo themeId + nuevo themeOrder.
 """
 import json
 import os
 import sys
+from datetime import date
 
 PACKS_DIR = os.path.join(os.path.dirname(__file__), "packs")
 
@@ -41,7 +50,8 @@ def main():
         "themeOrder": 99,
         "title": "TODO",
         "difficulty": 1,
-        "dateAdded": "TODO"
+        "sort_order": 99,
+        "dateAdded": date.today().isoformat()
     }
     with open(os.path.join(pack_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
@@ -50,7 +60,11 @@ def main():
         f.write("")
 
     print(f"Pack creado: packs/{pack_id}/")
-    print(f"  1. Edita meta.json con los datos del pack.")
+    print(f"  1. Edita meta.json:")
+    print(f"       - themeId: ID del tema (p.ej. 'greetings')")
+    print(f"       - difficulty: 1=básico, 2=intermedio, 3=avanzado")
+    print(f"       - sort_order: posición en la lista del tema (número único)")
+    print(f"       - title: título descriptivo del pack (p.ej. 'En el aeropuerto')")
     print(f"  2. Rellena phrases.txt con el formato: \"español\",\"english\"")
     print(f"  3. Genera el audio: python generate_audio.py {pack_id}")
     print(f"  4. Sincroniza con la app: python sync_mobile.py")
