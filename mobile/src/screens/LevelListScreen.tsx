@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { getLevelsByTopic, LevelWithProgress, Topic } from '../db/queries';
 import { getTopicsFromStore } from '../store/appStore';
@@ -36,6 +37,7 @@ export function LevelListScreen({ route, navigation }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
   const { difficultyFilter, seenLevelIds } = useSettingsStore();
+  const insets = useSafeAreaInsets();
   const [levels, setLevels] = useState<LevelWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -118,7 +120,7 @@ export function LevelListScreen({ route, navigation }: Props) {
     <LinearGradient colors={gradientColors} style={styles.container}>
       <StatusBar barStyle={theme.name === 'dark' ? 'light-content' : 'dark-content'} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>←</Text>
         </TouchableOpacity>
@@ -161,7 +163,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       flexDirection: 'row',
       alignItems: 'center',
       paddingHorizontal: 16,
-      paddingTop: 16,
       paddingBottom: 12,
       gap: 10,
     },

@@ -10,6 +10,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { PhraseCard } from '../components/PhraseCard';
 import { useAudio } from '../hooks/useAudio';
@@ -30,6 +31,7 @@ type ListenState = 'idle' | 'playing' | 'played' | 'revealed';
 export function PlayScreen({ route, navigation }: Props) {
   const { levelId, levelTitle } = route.params;
   const theme = useTheme();
+  const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const { playAudio, stopAudio } = useAudio();
   const markLevelSeen = useSettingsStore(s => s.markLevelSeen);
@@ -172,7 +174,7 @@ export function PlayScreen({ route, navigation }: Props) {
         <StatusBar barStyle={theme.name === 'dark' ? 'light-content' : 'dark-content'} />
 
         {/* Header */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={handleExit} style={styles.exitBtn}>
             <Text style={styles.exitText}>✕</Text>
           </TouchableOpacity>
@@ -275,7 +277,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingTop: 56,
       paddingBottom: 12,
     },
     exitBtn: { padding: 8 },
