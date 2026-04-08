@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
@@ -44,7 +45,7 @@ export function TopicListScreen({ navigation }: Props) {
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Elige un tema</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Ionicons name="settings-outline" size={20} color={theme.textSub} />
         </TouchableOpacity>
       </View>
 
@@ -59,9 +60,9 @@ export function TopicListScreen({ navigation }: Props) {
             onPress={() => handleSelectTopic(item)}
             activeOpacity={0.8}
           >
-            <Text style={styles.cardIcon}>{item.icon}</Text>
+            <Ionicons name={item.icon as any} size={32} color={item.color} />
             <Text style={styles.cardName}>{item.name}</Text>
-            <Text style={styles.cardArrow}>›</Text>
+            <Ionicons name="chevron-forward" size={22} color={theme.inactive} />
           </TouchableOpacity>
         )}
       />
@@ -94,7 +95,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       borderWidth: 1,
       borderColor: theme.border,
     },
-    settingsIcon: { fontSize: 20 },
     list: {
       padding: 16,
       gap: 12,
@@ -114,16 +114,11 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       shadowRadius: 8,
       elevation: 4,
     },
-    cardIcon: { fontSize: 32 },
     cardName: {
       flex: 1,
       fontSize: 20,
       fontWeight: '700',
       color: theme.textBold,
-    },
-    cardArrow: {
-      fontSize: 26,
-      color: theme.inactive,
     },
   });
 }

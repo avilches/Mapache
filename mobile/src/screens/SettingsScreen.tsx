@@ -13,6 +13,7 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { useSettingsStore } from '../store/settingsStore';
@@ -23,10 +24,11 @@ import type { RootStackParamList } from '../../App';
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type ThemeMode = 'system' | 'light' | 'dark';
 
-const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
-  { value: 'system', label: 'Sistema', icon: '📱' },
-  { value: 'light', label: 'Claro', icon: '☀️' },
-  { value: 'dark', label: 'Oscuro', icon: '🌙' },
+type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
+const THEME_OPTIONS: { value: ThemeMode; label: string; icon: IoniconsName }[] = [
+  { value: 'system', label: 'Sistema', icon: 'phone-portrait-outline' },
+  { value: 'light',  label: 'Claro',   icon: 'sunny-outline' },
+  { value: 'dark',   label: 'Oscuro',  icon: 'moon-outline' },
 ];
 
 export function SettingsScreen({ navigation }: Props) {
@@ -75,7 +77,7 @@ export function SettingsScreen({ navigation }: Props) {
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-              <Text style={styles.backText}>←</Text>
+              <Ionicons name="arrow-back" size={22} color={theme.textSub} />
             </TouchableOpacity>
             <Text style={styles.title}>Ajustes</Text>
           </View>
@@ -94,7 +96,7 @@ export function SettingsScreen({ navigation }: Props) {
                   onPress={() => setThemeMode(opt.value)}
                   activeOpacity={0.8}
                 >
-                  <Text style={styles.themeOptionIcon}>{opt.icon}</Text>
+                  <Ionicons name={opt.icon} size={22} color={themeMode === opt.value ? theme.primary : theme.textSub} />
                   <Text style={[
                     styles.themeOptionLabel,
                     themeMode === opt.value && styles.themeOptionLabelActive,
@@ -176,7 +178,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       marginBottom: 8,
     },
     backBtn: { padding: 8 },
-    backText: { fontSize: 22, color: theme.textSub },
     title: { fontSize: 30, fontWeight: '800', color: theme.textBold },
     section: {
       backgroundColor: theme.card,
@@ -214,7 +215,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       borderColor: theme.primary,
       backgroundColor: theme.primary + '18',
     },
-    themeOptionIcon: { fontSize: 22 },
     themeOptionLabel: { fontSize: 12, color: theme.textSub, fontWeight: '600' },
     themeOptionLabelActive: { color: theme.primary },
     input: {

@@ -12,14 +12,10 @@ import type {
   Phrase,
 } from '../src/store/appStore';
 
-// Mock topics.json so tests can use topicId 'test' and 'other'
-jest.mock('../assets/topics.json', () => [
-  { id: 'test', name: 'Test', icon: '🧪', color: '#268bd2' },
-  { id: 'other', name: 'Other', icon: '🔥', color: '#dc322f' },
-]);
-
 // Helpers to build mock level data
 const LEVEL_DIR = 'file:///mock-document/levels/test-basic-1/';
+
+const MOCK_TOPIC = { id: 'test', name: 'Test', icon: '🧪', color: '#268bd2' };
 
 const MOCK_META = {
   id: 'test-basic-1',
@@ -40,6 +36,7 @@ function seedMockLevel() {
   const { _seedFile } = require('expo-file-system/legacy');
   _seedFile(LEVEL_DIR + 'meta.json', JSON.stringify(MOCK_META));
   _seedFile(LEVEL_DIR + 'phrases.json', JSON.stringify(MOCK_PHRASES));
+  _seedFile(LEVEL_DIR + 'topic.json', JSON.stringify(MOCK_TOPIC));
 }
 
 beforeEach(() => {
@@ -183,8 +180,10 @@ describe('scanInstalledLevels', () => {
     const level2Dir = 'file:///mock-document/levels/test-basic-2/';
     _seedFile(LEVEL_DIR + 'meta.json', JSON.stringify(MOCK_META));
     _seedFile(LEVEL_DIR + 'phrases.json', JSON.stringify(MOCK_PHRASES));
+    _seedFile(LEVEL_DIR + 'topic.json', JSON.stringify(MOCK_TOPIC));
     _seedFile(level2Dir + 'meta.json', JSON.stringify(meta2));
     _seedFile(level2Dir + 'phrases.json', JSON.stringify(MOCK_PHRASES));
+    _seedFile(level2Dir + 'topic.json', JSON.stringify(MOCK_TOPIC));
 
     const { scanInstalledLevels, getTopicsFromStore, getLevelsFromStore } =
       require('../src/store/appStore');

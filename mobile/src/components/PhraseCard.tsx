@@ -15,6 +15,7 @@ import Animated, {
   interpolateColor,
 } from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { Phrase } from '../db/queries';
 
@@ -157,7 +158,8 @@ export function PhraseCard({
             onPress={onListenPress}
             activeOpacity={0.75}
           >
-            <Text style={styles.listenText}>🔊  Listen</Text>
+            <Ionicons name="volume-high-outline" size={22} color="#fff" />
+            <Text style={styles.listenText}>Listen</Text>
           </TouchableOpacity>
 
           <View style={styles.navRow}>
@@ -167,7 +169,7 @@ export function PhraseCard({
                 onPress={() => exitRight(onSwipeRight)}
                 activeOpacity={0.7}
               >
-                <Text style={styles.arrowText}>←</Text>
+                <Ionicons name="arrow-back" size={22} color={theme.inactive} />
               </TouchableOpacity>
             ) : (
               <View style={styles.arrowPlaceholder} />
@@ -186,7 +188,7 @@ export function PhraseCard({
               onPress={() => exitLeft(onSwipeLeft)}
               activeOpacity={0.7}
             >
-              <Text style={styles.arrowText}>→</Text>
+              <Ionicons name="arrow-forward" size={22} color={theme.inactive} />
             </TouchableOpacity>
           </View>
         </View>
@@ -263,7 +265,9 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       paddingVertical: 14,
       paddingHorizontal: 40,
       borderRadius: 50,
+      flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
     },
     listenText: {
       color: '#fff',
@@ -272,21 +276,17 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
     },
     arrowPlaceholder: {
       width: 52,
-      height: 52,
+      alignSelf: 'stretch',
     },
     arrowBtn: {
       width: 52,
-      height: 52,
-      borderRadius: 26,
+      alignSelf: 'stretch',
+      borderRadius: 16,
       backgroundColor: theme.inactive + '28',
       borderWidth: 1,
       borderColor: theme.inactive + '40',
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    arrowText: {
-      fontSize: 22,
-      color: theme.inactive,
     },
   });
 }

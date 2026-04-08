@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { getLevelsByTopic, LevelWithProgress, Topic } from '../db/queries';
@@ -139,12 +140,12 @@ export function LevelListScreen({ route, navigation }: Props) {
 
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backText}>←</Text>
+          <Ionicons name="arrow-back" size={22} color={theme.textSub} />
         </TouchableOpacity>
-        {topicData && <Text style={styles.themeIcon}>{topicData.icon}</Text>}
+        {topicData && <Ionicons name={topicData.icon as any} size={28} color={topicData.color} />}
         <Text style={styles.themeTitle}>{topicData?.name ?? ''}</Text>
         <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
-          <Text style={styles.settingsIcon}>⚙️</Text>
+          <Ionicons name="settings-outline" size={18} color={theme.textSub} />
         </TouchableOpacity>
       </View>
 
@@ -205,8 +206,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       gap: 10,
     },
     backBtn: { padding: 8 },
-    backText: { fontSize: 22, color: theme.textSub },
-    themeIcon: { fontSize: 28 },
     themeTitle: {
       fontSize: 26,
       fontWeight: '800',
@@ -249,7 +248,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       borderWidth: 1,
       borderColor: theme.border,
     },
-    settingsIcon: { fontSize: 18 },
     list: {
       padding: 16,
       gap: 12,

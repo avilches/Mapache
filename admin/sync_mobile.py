@@ -16,7 +16,6 @@ Uso: python sync_mobile.py
 import csv
 import json
 import os
-import shutil
 import sys
 import zipfile
 
@@ -25,7 +24,6 @@ MOBILE_DIR = os.path.join(os.path.dirname(__file__), "..", "mobile")
 ASSETS_LEVELS_OUT = os.path.join(MOBILE_DIR, "assets", "levels")
 APP_STORE_TS = os.path.join(MOBILE_DIR, "src", "store", "appStore.ts")
 TOPICS_JSON_SRC = os.path.join(os.path.dirname(__file__), "topics.json")
-TOPICS_JSON_DST = os.path.join(MOBILE_DIR, "assets", "topics.json")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -72,18 +70,23 @@ def load_all_levels() -> list[dict]:
 
 # ── step 1: generate ZIPs ────────────────────────────────────────────────────
 
-def create_level_zip(level: dict) -> None:
+def create_level_zip(level: dict, topics_by_id: dict) -> None:
     level_id = level["meta"]["id"]
     level_dir = os.path.join(LEVELS_DIR, level_id)
     zip_path = os.path.join(ASSETS_LEVELS_OUT, f"{level_id}.zip")
 
     phrases_json = json.dumps(level["phrases"], ensure_ascii=False, indent=2)
+    topic_id = level["meta"].get("topicId", "")
+    topic_data = topics_by_id.get(topic_id)
 
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         # meta.json
         zf.write(os.path.join(level_dir, "meta.json"), f"{level_id}/meta.json")
         # phrases.json (converted from phrases.txt)
         zf.writestr(f"{level_id}/phrases.json", phrases_json.encode("utf-8"))
+        # topic.json (para que el level sea auto-suficiente si se descarga)
+        if topic_data:
+            zf.writestr(f"{level_id}/topic.json", json.dumps(topic_data, ensure_ascii=False))
         # audio files
         for mp3 in level["mp3s"]:
             zf.write(os.path.join(level_dir, "audio", mp3), f"{level_id}/audio/{mp3}")
@@ -124,34 +127,25 @@ def update_app_store_ts(levels: list[dict]) -> None:
         f.write(new_content)
 
 
-# ── step 0: copy topics.json ─────────────────────────────────────────────────
-
-def copy_topics_json() -> None:
-    if not os.path.isfile(TOPICS_JSON_SRC):
-        print("  [error] No se encontró admin/topics.json")
-        sys.exit(1)
-    shutil.copy2(TOPICS_JSON_SRC, TOPICS_JSON_DST)
-    print(f"  [topics] Copiado topics.json → {TOPICS_JSON_DST}")
-
 
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print("Copiando topics.json...")
-    copy_topics_json()
-
-    print("\nLeyendo levels...")
+    print("Leyendo levels...")
     levels = load_all_levels()
     if not levels:
         print("No hay levels con audio. Ejecuta generate_audio.py primero.")
         sys.exit(1)
     print(f"  {len(levels)} levels listos: {[l['meta']['id'] for l in levels]}")
 
+    with open(TOPICS_JSON_SRC, "r", encoding="utf-8") as f:
+        topics_by_id = {t["id"]: t for t in json.load(f)}
+
     os.makedirs(ASSETS_LEVELS_OUT, exist_ok=True)
 
     print("\nGenerando ZIPs → mobile/assets/levels/")
     for level in levels:
-        create_level_zip(level)
+        create_level_zip(level, topics_by_id)
 
     print("\nActualizando BUNDLED_ZIPS en mobile/src/store/appStore.ts")
     update_app_store_ts(levels)

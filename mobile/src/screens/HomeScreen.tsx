@@ -15,6 +15,7 @@ import Animated, {
   withSequence,
   Easing,
 } from 'react-native-reanimated';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { useSettingsStore } from '../store/settingsStore';
 export function HomeScreen({ navigation }: { navigation: any }) {
@@ -95,7 +96,7 @@ export function HomeScreen({ navigation }: { navigation: any }) {
           style={styles.optionsBtn}
           onPress={() => navigation.navigate('Settings')}
         >
-          <Text style={styles.optionsIcon}>⚙️</Text>
+          <Ionicons name="settings-outline" size={22} color={theme.textSub} />
         </TouchableOpacity>
       </View>
     </LinearGradient>
@@ -177,9 +178,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       backgroundColor: theme.bgPanel,
       borderWidth: 1,
       borderColor: theme.border,
-    },
-    optionsIcon: {
-      fontSize: 22,
     },
   });
 }
