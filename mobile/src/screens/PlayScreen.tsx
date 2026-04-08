@@ -432,6 +432,6 @@ function makeFinishedStyles(theme: ReturnType<typeof useTheme>) {
       borderRadius: 50,
       alignItems: 'center',
     },
-    btnText: { fontSize: 16, fontWeight: '600', color: '#fff' },
+    btnText: { fontSize: 16, fontWeight: '600', color: theme.onPrimary },
   });
 }

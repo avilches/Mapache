@@ -23,7 +23,12 @@ type Props = NativeStackScreenProps<RootStackParamList, 'LevelList'>;
 
 const DIFFICULTY_LABELS: Record<number, string> = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado' };
 const DIFFICULTY_STARS: Record<number, string> = { 1: '★', 2: '★★', 3: '★★★' };
-const DIFFICULTY_COLORS: Record<number, string> = { 1: '#859900', 2: '#b58900', 3: '#cb4b16' };
+function difficultyColor(difficulty: number, theme: ReturnType<typeof useTheme>): string {
+  if (difficulty === 1) return theme.green;
+  if (difficulty === 2) return theme.yellow;
+  if (difficulty === 3) return theme.orange;
+  return theme.primary;
+}
 const DIFFICULTY_OPTIONS: { value: 0 | 1 | 2 | 3; label: string; stars: string }[] = [
   { value: 0, label: 'Todos', stars: '·' },
   { value: 1, label: 'Básico', stars: '★' },
@@ -75,7 +80,7 @@ export function LevelListScreen({ route, navigation }: Props) {
       ? item.learned_count / item.total_phrases
       : 0;
     const isComplete = item.learned_count >= item.total_phrases && item.total_phrases > 0;
-    const diffColor = DIFFICULTY_COLORS[item.difficulty] ?? '#268bd2';
+    const diffColor = difficultyColor(item.difficulty, theme);
     const isNew = isNewLevel(item.date_added) && !seenLevelIds.includes(item.id);
 
     return (

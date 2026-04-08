@@ -164,7 +164,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       alignItems: 'center',
     },
     mainBtnText: {
-      color: '#fff',
+      color: theme.onPrimary,
       fontSize: 18,
       fontWeight: '700',
       letterSpacing: 0.5,

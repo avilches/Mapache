@@ -158,7 +158,7 @@ export function PhraseCard({
             onPress={onListenPress}
             activeOpacity={0.75}
           >
-            <Ionicons name="volume-high-outline" size={22} color="#fff" />
+            <Ionicons name="volume-high-outline" size={22} color={theme.onPrimary} />
             <Text style={styles.listenText}>Listen</Text>
           </TouchableOpacity>
 
@@ -270,7 +270,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       gap: 8,
     },
     listenText: {
-      color: '#fff',
+      color: theme.onPrimary,
       fontSize: 16,
       fontWeight: '600',
     },

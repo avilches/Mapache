@@ -24,10 +24,11 @@ export const solarizedDark = {
   border:   '#073642',
   card:     '#073642',
   cardBorder: '#0d4050',
-  primary:  '#268bd2',
-  success:  '#859900',
-  warning:  '#b58900',
-  inactive: '#586e75',
+  primary:   '#268bd2',
+  onPrimary: '#ffffff',
+  success:   '#859900',
+  warning:   '#b58900',
+  inactive:  '#586e75',
 };
 
 export const solarizedLight = {
@@ -49,10 +50,11 @@ export const solarizedLight = {
   border:   '#eee8d5',
   card:     '#ffffff',
   cardBorder: '#eee8d5',
-  primary:  '#268bd2',
-  success:  '#859900',
-  warning:  '#b58900',
-  inactive: '#93a1a1',
+  primary:   '#268bd2',
+  onPrimary: '#ffffff',
+  success:   '#859900',
+  warning:   '#b58900',
+  inactive:  '#93a1a1',
 };
 
 export const solarizedNeon = {
@@ -74,10 +76,11 @@ export const solarizedNeon = {
   border:   '#042a36',
   card:     '#021d26',
   cardBorder: '#0a4558',
-  primary:  '#00d4c8',
-  success:  '#a8c000',
-  warning:  '#e6b000',
-  inactive: '#3a6068',
+  primary:   '#00d4c8',
+  onPrimary: '#ffffff',
+  success:   '#a8c000',
+  warning:   '#e6b000',
+  inactive:  '#3a6068',
 };
 
 export type Theme = Omit<typeof solarizedDark, 'name'> & { name: 'dark' | 'light' };

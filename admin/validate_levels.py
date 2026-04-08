@@ -32,7 +32,6 @@ PACKS_DIR = os.path.join(ROOT, "admin", "levels")
 ZIPS_DIR = os.path.join(ROOT, "mobile", "assets", "levels")
 APP_STORE_TS = os.path.join(ROOT, "mobile", "src", "store", "appStore.ts")
 TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
-TOPICS_JSON_MOBILE = os.path.join(ROOT, "mobile", "assets", "topics.json")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -74,30 +73,30 @@ def parse_bundled_zips(ts_source: str) -> list[str]:
 # ─── Validación topics.json ───────────────────────────────────────────────────
 
 def validate_topics_json() -> tuple[set[str], list[str]]:
-    """Valida admin/topics.json y mobile/assets/topics.json.
+    """Valida admin/topics.json.
     Devuelve (valid_topic_ids, errores)."""
     errors = []
     valid_ids: set[str] = set()
 
-    for path, label in [(TOPICS_JSON, "admin/topics.json"), (TOPICS_JSON_MOBILE, "mobile/assets/topics.json")]:
-        if not os.path.isfile(path):
-            errors.append(f"Archivo no encontrado: {path}")
-            continue
-        try:
-            with open(path, encoding="utf-8") as f:
-                data = json.load(f)
-            if not isinstance(data, list):
-                errors.append(f"{label}: debe ser un array JSON")
-                continue
-            required = {"id", "name", "icon", "color"}
-            for i, t in enumerate(data):
-                missing = required - set(t.keys())
-                if missing:
-                    errors.append(f"{label}[{i}]: faltan campos {sorted(missing)}")
-                else:
-                    valid_ids.add(t["id"])
-        except json.JSONDecodeError as e:
-            errors.append(f"{label}: JSON inválido: {e}")
+    if not os.path.isfile(TOPICS_JSON):
+        errors.append(f"Archivo no encontrado: {TOPICS_JSON}")
+        return valid_ids, errors
+
+    try:
+        with open(TOPICS_JSON, encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, list):
+            errors.append("admin/topics.json: debe ser un array JSON")
+            return valid_ids, errors
+        required = {"id", "name", "icon", "color"}
+        for i, t in enumerate(data):
+            missing = required - set(t.keys())
+            if missing:
+                errors.append(f"admin/topics.json[{i}]: faltan campos {sorted(missing)}")
+            else:
+                valid_ids.add(t["id"])
+    except json.JSONDecodeError as e:
+        errors.append(f"admin/topics.json: JSON inválido: {e}")
 
     return valid_ids, errors
 
@@ -384,7 +383,7 @@ def main() -> int:
             print(f"  ✗ {e}")
             total_errors += len(topics_errors)
     else:
-        print(f"  ✓ admin/topics.json y mobile/assets/topics.json OK: {sorted(valid_topic_ids)}")
+        print(f"  ✓ admin/topics.json OK: {sorted(valid_topic_ids)}")
 
     # 1. admin/levels/
     admin_packs, admin_global_errors = validate_admin_levels(valid_topic_ids if not topics_errors else None)

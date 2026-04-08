@@ -243,7 +243,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       opacity: 0.4,
     },
     downloadBtnText: {
-      color: '#fff',
+      color: theme.onPrimary,
       fontWeight: '700',
       fontSize: 15,
     },

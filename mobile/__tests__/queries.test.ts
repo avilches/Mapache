@@ -5,12 +5,6 @@
  * query logic (filtering, sorting, progress aggregation) in isolation.
  */
 
-// Mock topics.json so tests can use topicId 'test' and 'other'
-jest.mock('../assets/topics.json', () => [
-  { id: 'test', name: 'Test', icon: '🧪', color: '#268bd2' },
-  { id: 'other', name: 'Other', icon: '🔥', color: '#dc322f' },
-]);
-
 // Data fixtures
 const MOCK_META_TEST: Record<string, any> = {
   id: 'test-basic-1',

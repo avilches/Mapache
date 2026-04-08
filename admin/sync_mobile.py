@@ -3,10 +3,9 @@
 Sincroniza todos los levels de admin/levels/ con la app móvil.
 
 Qué hace:
-  0. Copia admin/topics.json → mobile/assets/topics.json
   1. Para cada level en admin/levels/ (que tenga audio generado):
      - Genera un ZIP en mobile/assets/levels/<id>.zip
-       Contenido: <id>/meta.json + <id>/phrases.json + <id>/audio/*.mp3
+       Contenido: <id>/meta.json + <id>/phrases.json + <id>/topic.json + <id>/audio/*.mp3
   2. Actualiza el bloque BUNDLED_ZIPS en mobile/src/store/appStore.ts
 
 Solo se incluyen levels que tengan audio generado (carpeta audio/ no vacía).
