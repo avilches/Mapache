@@ -1,12 +1,7 @@
 {
   "id": "trav-adv-1",
   "topicId": "travel",
-  "topicName": "Viajes",
-  "topicIcon": "✈️",
-  "topicColor": "#859900",
-  "topicOrder": 2,
   "title": "Situaciones imprevistas",
   "difficulty": 3,
-  "sort_order": 3,
   "dateAdded": "2024-01-01"
 }

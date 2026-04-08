@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -13,13 +13,14 @@ import {
   Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { useSettingsStore } from '../store/settingsStore';
 import { downloadAndInstallLevel, DownloadProgress } from '../utils/downloadLevel';
-import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
-import type { RootTabParamList } from '../../App';
+import type { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../../App';
 
-type Props = BottomTabScreenProps<RootTabParamList, 'Settings'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>;
 type ThemeMode = 'system' | 'light' | 'dark';
 
 const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
@@ -28,17 +29,11 @@ const THEME_OPTIONS: { value: ThemeMode; label: string; icon: string }[] = [
   { value: 'dark', label: 'Oscuro', icon: '🌙' },
 ];
 
-const DIFFICULTY_OPTIONS: { value: 0 | 1 | 2 | 3; label: string; stars: string }[] = [
-  { value: 0, label: 'Todos', stars: '' },
-  { value: 1, label: 'Básico', stars: '★' },
-  { value: 2, label: 'Intermedio', stars: '★★' },
-  { value: 3, label: 'Avanzado', stars: '★★★' },
-];
-
-export function SettingsScreen(_props: Props) {
+export function SettingsScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const { themeMode, setThemeMode, difficultyFilter, setDifficultyFilter } = useSettingsStore();
+  const insets = useSafeAreaInsets();
+  const { themeMode, setThemeMode } = useSettingsStore();
 
   const [downloadUrl, setDownloadUrl] = useState('');
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
@@ -76,39 +71,13 @@ export function SettingsScreen(_props: Props) {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <ScrollView contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 12 }]} showsVerticalScrollIndicator={false}>
           {/* Header */}
           <View style={styles.header}>
+            <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+              <Text style={styles.backText}>←</Text>
+            </TouchableOpacity>
             <Text style={styles.title}>Ajustes</Text>
-          </View>
-
-          {/* Difficulty filter section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Filtro de dificultad</Text>
-            <Text style={styles.sectionDesc}>
-              Filtra los niveles por dificultad en todos los temas.
-            </Text>
-            <View style={styles.themeOptions}>
-              {DIFFICULTY_OPTIONS.map((opt) => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[
-                    styles.themeOption,
-                    difficultyFilter === opt.value && styles.themeOptionActive,
-                  ]}
-                  onPress={() => setDifficultyFilter(opt.value)}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.themeOptionIcon}>{opt.stars || '·'}</Text>
-                  <Text style={[
-                    styles.themeOptionLabel,
-                    difficultyFilter === opt.value && styles.themeOptionLabelActive,
-                  ]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
           </View>
 
           {/* Theme section */}
@@ -185,7 +154,7 @@ export function SettingsScreen(_props: Props) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Formato del archivo</Text>
             <Text style={styles.code}>{JSON.stringify({
-              metadata: { id: "trav-adv-2", topicId: "travel", title: "Situaciones imprevistas 2", difficulty: 3, sort_order: 4, dateAdded: "2024-01-01" },
+              metadata: { id: "trav-adv-2", topicId: "travel", title: "Situaciones imprevistas 2", difficulty: 3, dateAdded: "2024-01-01" },
               phrases: [{ spanish: "Hola", english: "Hello" }],
               audio: { "001": "<base64 mp3>" }
             }, null, 2)}</Text>
@@ -201,9 +170,13 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
     container: { flex: 1 },
     scroll: { padding: 20, paddingBottom: 60, gap: 24 },
     header: {
-      paddingTop: 56,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
       marginBottom: 8,
     },
+    backBtn: { padding: 8 },
+    backText: { fontSize: 22, color: theme.textSub },
     title: { fontSize: 30, fontWeight: '800', color: theme.textBold },
     section: {
       backgroundColor: theme.card,

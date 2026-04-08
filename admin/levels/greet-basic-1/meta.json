@@ -1,12 +1,7 @@
 {
   "id": "greet-basic-1",
   "topicId": "greetings",
-  "topicName": "Saludos",
-  "topicIcon": "👋",
-  "topicColor": "#268bd2",
-  "topicOrder": 0,
   "title": "Primeros saludos",
   "difficulty": 1,
-  "sort_order": 1,
   "dateAdded": "2024-01-01"
 }

@@ -16,13 +16,19 @@ import { getLevelsByTopic, LevelWithProgress, Topic } from '../db/queries';
 import { getTopicsFromStore } from '../store/appStore';
 import { useSettingsStore } from '../store/settingsStore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { PracticeStackParamList } from '../../App';
+import type { RootStackParamList } from '../../App';
 
-type Props = NativeStackScreenProps<PracticeStackParamList, 'LevelList'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'LevelList'>;
 
 const DIFFICULTY_LABELS: Record<number, string> = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado' };
 const DIFFICULTY_STARS: Record<number, string> = { 1: '★', 2: '★★', 3: '★★★' };
 const DIFFICULTY_COLORS: Record<number, string> = { 1: '#859900', 2: '#b58900', 3: '#cb4b16' };
+const DIFFICULTY_OPTIONS: { value: 0 | 1 | 2 | 3; label: string; stars: string }[] = [
+  { value: 0, label: 'Todos', stars: '·' },
+  { value: 1, label: 'Básico', stars: '★' },
+  { value: 2, label: 'Intermedio', stars: '★★' },
+  { value: 3, label: 'Avanzado', stars: '★★★' },
+];
 
 const NEW_LEVEL_DAYS = 30;
 
@@ -36,21 +42,32 @@ export function LevelListScreen({ route, navigation }: Props) {
   const { topicId } = route.params;
   const theme = useTheme();
   const styles = makeStyles(theme);
-  const { difficultyFilter, seenLevelIds } = useSettingsStore();
+  const { difficultyFilter, setDifficultyFilter, seenLevelIds } = useSettingsStore();
   const insets = useSafeAreaInsets();
-  const [levels, setLevels] = useState<LevelWithProgress[]>([]);
+  const [allLevels, setAllLevels] = useState<LevelWithProgress[]>([]);
   const [loading, setLoading] = useState(true);
 
   const topicData: Topic | undefined = getTopicsFromStore().find(t => t.id === topicId);
 
   const loadLevels = useCallback(async () => {
     setLoading(true);
-    const data = await getLevelsByTopic(topicId, difficultyFilter);
-    setLevels(data);
+    const data = await getLevelsByTopic(topicId, 0);
+    setAllLevels(data);
     setLoading(false);
-  }, [topicId, difficultyFilter]);
+  }, [topicId]);
 
   useFocusEffect(useCallback(() => { loadLevels(); }, [loadLevels]));
+
+  const levels = difficultyFilter === 0
+    ? allLevels
+    : allLevels.filter(l => l.difficulty === difficultyFilter);
+
+  const countByDifficulty: Record<0 | 1 | 2 | 3, number> = {
+    0: allLevels.length,
+    1: allLevels.filter(l => l.difficulty === 1).length,
+    2: allLevels.filter(l => l.difficulty === 2).length,
+    3: allLevels.filter(l => l.difficulty === 3).length,
+  };
 
   function renderLevel({ item }: { item: LevelWithProgress }) {
     const progress = item.total_phrases > 0
@@ -126,13 +143,34 @@ export function LevelListScreen({ route, navigation }: Props) {
         </TouchableOpacity>
         {topicData && <Text style={styles.themeIcon}>{topicData.icon}</Text>}
         <Text style={styles.themeTitle}>{topicData?.name ?? ''}</Text>
-        {difficultyFilter > 0 && (
-          <View style={[styles.filterBadge, { backgroundColor: DIFFICULTY_COLORS[difficultyFilter] + '22', borderColor: DIFFICULTY_COLORS[difficultyFilter] }]}>
-            <Text style={[styles.filterBadgeText, { color: DIFFICULTY_COLORS[difficultyFilter] }]}>
-              {DIFFICULTY_LABELS[difficultyFilter]}
-            </Text>
-          </View>
-        )}
+        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
+          <Text style={styles.settingsIcon}>⚙️</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.filterRow}>
+        {DIFFICULTY_OPTIONS.map((opt) => {
+          const isActive = difficultyFilter === opt.value;
+          const accentColor = topicData?.color ?? theme.primary;
+          return (
+            <TouchableOpacity
+              key={opt.value}
+              style={[
+                styles.filterPill,
+                isActive && { borderColor: accentColor, backgroundColor: accentColor + '22' },
+              ]}
+              onPress={() => setDifficultyFilter(opt.value)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.filterPillText, isActive && { color: accentColor }]}>
+                {opt.stars || '·'}
+              </Text>
+              <Text style={[styles.filterPillCount, isActive && { color: accentColor }]}>
+                {countByDifficulty[opt.value]}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       <FlatList
@@ -175,13 +213,43 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       color: theme.textBold,
       flex: 1,
     },
-    filterBadge: {
-      borderWidth: 1,
-      borderRadius: 20,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
+    filterRow: {
+      flexDirection: 'row',
+      paddingHorizontal: 16,
+      paddingBottom: 12,
+      gap: 8,
     },
-    filterBadgeText: { fontSize: 12, fontWeight: '600' },
+    filterPill: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingVertical: 8,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: theme.bgPanel,
+      backgroundColor: theme.bgPanel,
+    },
+    filterPillText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: theme.textSub,
+    },
+    filterPillCount: {
+      fontSize: 11,
+      fontWeight: '600',
+      color: theme.inactive,
+    },
+    settingsBtn: {
+      width: 40,
+      height: 40,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 20,
+      backgroundColor: theme.bgPanel,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    settingsIcon: { fontSize: 18 },
     list: {
       padding: 16,
       gap: 12,

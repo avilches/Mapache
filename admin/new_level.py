@@ -17,7 +17,7 @@ Convención de IDs:
     work-basic-1     → trabajo (nuevo topic), básico, primer level
 
   Para añadir a una serie existente: usa el mismo topicId.
-  Para una nueva serie: nuevo topicId + nuevo topicOrder.
+  Para una nueva serie: añade primero el topic en admin/topics.json.
 """
 import json
 import os
@@ -25,6 +25,15 @@ import sys
 from datetime import date
 
 LEVELS_DIR = os.path.join(os.path.dirname(__file__), "levels")
+TOPICS_JSON = os.path.join(os.path.dirname(__file__), "topics.json")
+
+
+def load_topic_ids() -> list[str]:
+    try:
+        with open(TOPICS_JSON, encoding="utf-8") as f:
+            return [t["id"] for t in json.load(f)]
+    except Exception:
+        return []
 
 
 def main():
@@ -41,16 +50,14 @@ def main():
 
     os.makedirs(level_dir)
 
+    topic_ids = load_topic_ids()
+    topic_hint = ", ".join(topic_ids) if topic_ids else "ver admin/topics.json"
+
     meta = {
         "id": level_id,
         "topicId": "TODO",
-        "topicName": "TODO",
-        "topicIcon": "TODO",
-        "topicColor": "#TODO",
-        "topicOrder": 99,
         "title": "TODO",
         "difficulty": 1,
-        "sort_order": 99,
         "dateAdded": date.today().isoformat()
     }
     with open(os.path.join(level_dir, "meta.json"), "w", encoding="utf-8") as f:
@@ -61,9 +68,8 @@ def main():
 
     print(f"Level creado: levels/{level_id}/")
     print(f"  1. Edita meta.json:")
-    print(f"       - topicId: ID del topic (p.ej. 'greetings')")
+    print(f"       - topicId: uno de [{topic_hint}]")
     print(f"       - difficulty: 1=básico, 2=intermedio, 3=avanzado")
-    print(f"       - sort_order: posición en la lista del topic (número único)")
     print(f"       - title: título descriptivo del level (p.ej. 'En el aeropuerto')")
     print(f"  2. Rellena phrases.txt con el formato: \"español\",\"english\"")
     print(f"  3. Genera el audio: python generate_audio.py {level_id}")

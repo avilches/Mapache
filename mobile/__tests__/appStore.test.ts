@@ -12,19 +12,20 @@ import type {
   Phrase,
 } from '../src/store/appStore';
 
+// Mock topics.json so tests can use topicId 'test' and 'other'
+jest.mock('../assets/topics.json', () => [
+  { id: 'test', name: 'Test', icon: '🧪', color: '#268bd2' },
+  { id: 'other', name: 'Other', icon: '🔥', color: '#dc322f' },
+]);
+
 // Helpers to build mock level data
 const LEVEL_DIR = 'file:///mock-document/levels/test-basic-1/';
 
 const MOCK_META = {
   id: 'test-basic-1',
   topicId: 'test',
-  topicName: 'Test',
-  topicIcon: '🧪',
-  topicColor: '#268bd2',
-  topicOrder: 0,
   title: 'Test level',
   difficulty: 1,
-  sort_order: 1,
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -99,6 +100,8 @@ describe('loadProgress / saveProgress', () => {
     expect(store2.getLevelProgressFromStore()['level-1']).toEqual({
       completedSessions: 2,
       lastPlayedAt: '2024-01-01T00:00:00.000Z',
+      totalListens: 0,
+      totalTimeSeconds: 0,
     });
   });
 
@@ -143,7 +146,6 @@ describe('scanInstalledLevels', () => {
       name: 'Test',
       icon: '🧪',
       color: '#268bd2',
-      sort_order: 0,
     });
 
     const levels: Level[] = getLevelsFromStore();
@@ -177,7 +179,7 @@ describe('scanInstalledLevels', () => {
   test('two levels with the same topic produce a single topic entry', async () => {
     const { _seedFile } = require('expo-file-system/legacy');
 
-    const meta2 = { ...MOCK_META, id: 'test-basic-2', sort_order: 2 };
+    const meta2 = { ...MOCK_META, id: 'test-basic-2' };
     const level2Dir = 'file:///mock-document/levels/test-basic-2/';
     _seedFile(LEVEL_DIR + 'meta.json', JSON.stringify(MOCK_META));
     _seedFile(LEVEL_DIR + 'phrases.json', JSON.stringify(MOCK_PHRASES));
@@ -257,6 +259,8 @@ describe('setLevelProgressEntry', () => {
     expect(getLevelProgressFromStore()['level-1']).toEqual({
       completedSessions: 1,
       lastPlayedAt: null,
+      totalListens: 0,
+      totalTimeSeconds: 0,
     });
   });
 });

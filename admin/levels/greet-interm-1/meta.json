@@ -1,12 +1,7 @@
 {
   "id": "greet-interm-1",
   "topicId": "greetings",
-  "topicName": "Saludos",
-  "topicIcon": "👋",
-  "topicColor": "#268bd2",
-  "topicOrder": 0,
   "title": "Saludos sociales",
   "difficulty": 2,
-  "sort_order": 2,
   "dateAdded": "2024-01-01"
 }

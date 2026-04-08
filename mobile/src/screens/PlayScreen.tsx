@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
+  Alert,
+  AppState,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,13 +21,16 @@ import {
   markPhraseLearnedInDb,
   markPhraseSeenInDb,
   completeLevel,
+  resetLevelProgress,
+  getLevelStats,
+  LevelStats,
   Phrase,
 } from '../db/queries';
 import { useSettingsStore } from '../store/settingsStore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { PracticeStackParamList } from '../../App';
+import type { RootStackParamList } from '../../App';
 
-type Props = NativeStackScreenProps<PracticeStackParamList, 'Play'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'Play'>;
 type ListenState = 'idle' | 'playing' | 'played' | 'revealed';
 
 export function PlayScreen({ route, navigation }: Props) {
@@ -40,16 +45,31 @@ export function PlayScreen({ route, navigation }: Props) {
   const [index, setIndex] = useState(0);
   const [listenState, setListenState] = useState<ListenState>('idle');
   const [enterFrom, setEnterFrom] = useState<'right' | 'left'>('right');
-  const [sessionLearned, setSessionLearned] = useState(0);
-  const [sessionSeen, setSessionSeen] = useState(0);
   const [finished, setFinished] = useState(false);
+  const [allPhrasesDone, setAllPhrasesDone] = useState(false);
+  const [finishedStats, setFinishedStats] = useState<LevelStats | null>(null);
   const seenInSession = useRef<Set<string>>(new Set());
+  const sessionListens = useRef(0);
+  const sessionActiveMs = useRef(0);   // ms acumulados en foreground
+  const segmentStart = useRef(0);      // inicio del segmento foreground actual
 
   useFocusEffect(useCallback(() => {
     loadPhrases();
     markLevelSeen(levelId);
     return () => { stopAudio(); };
   }, [levelId]));
+
+  // Pausar timer cuando la app va a background
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'background' || state === 'inactive') {
+        sessionActiveMs.current += Date.now() - segmentStart.current;
+      } else if (state === 'active') {
+        segmentStart.current = Date.now();
+      }
+    });
+    return () => sub.remove();
+  }, []);
 
   // Keyboard support for Mac/simulator
   useEffect(() => {
@@ -65,10 +85,40 @@ export function PlayScreen({ route, navigation }: Props) {
 
   async function loadPhrases() {
     const data = await getActivePhrases(levelId);
+    if (data.length === 0) {
+      Alert.alert(
+        'Unidad ya aprendida',
+        '¿Empezar de cero?',
+        [
+          { text: 'No', style: 'cancel', onPress: () => navigation.goBack() },
+          {
+            text: 'Sí', onPress: async () => {
+              await resetLevelProgress(levelId);
+              const fresh = await getActivePhrases(levelId);
+              sessionListens.current = 0;
+              sessionActiveMs.current = 0;
+              segmentStart.current = Date.now();
+              seenInSession.current = new Set();
+              setPhrases(fresh);
+              setIndex(0);
+              setListenState('idle');
+              setFinished(false);
+              setAllPhrasesDone(false);
+            },
+          },
+        ]
+      );
+      return;
+    }
+    sessionListens.current = 0;
+    sessionActiveMs.current = 0;
+    segmentStart.current = Date.now();
+    seenInSession.current = new Set();
     setPhrases(data);
     setIndex(0);
     setListenState('idle');
     setFinished(false);
+    setAllPhrasesDone(false);
   }
 
   const currentPhrase = phrases[index];
@@ -80,7 +130,6 @@ export function PlayScreen({ route, navigation }: Props) {
     if (!seenInSession.current.has(currentPhrase.id)) {
       seenInSession.current.add(currentPhrase.id);
       await markPhraseSeenInDb(currentPhrase.id, levelId);
-      setSessionSeen(s => s + 1);
     }
 
     if (index < phrases.length - 1) {
@@ -88,7 +137,7 @@ export function PlayScreen({ route, navigation }: Props) {
       setListenState('idle');
       setIndex(i => i + 1);
     } else {
-      await finishSession();
+      await finishSession(false);
     }
   }
 
@@ -105,13 +154,12 @@ export function PlayScreen({ route, navigation }: Props) {
     if (!currentPhrase) return;
     await stopAudio();
     await markPhraseLearnedInDb(currentPhrase.id, levelId);
-    setSessionLearned(l => l + 1);
 
     const newPhrases = phrases.filter((_, i) => i !== index);
     setPhrases(newPhrases);
 
     if (newPhrases.length === 0) {
-      await finishSession();
+      await finishSession(true);
     } else {
       setEnterFrom('right');
       setListenState('idle');
@@ -119,24 +167,27 @@ export function PlayScreen({ route, navigation }: Props) {
     }
   }
 
-  async function finishSession() {
-    await completeLevel(levelId);
+  async function finishSession(allDone: boolean) {
+    const totalActiveMs = sessionActiveMs.current + (Date.now() - segmentStart.current);
+    const sessionSecs = Math.round(totalActiveMs / 1000);
+    await completeLevel(levelId, sessionListens.current, sessionSecs);
+    setAllPhrasesDone(allDone);
+    setFinishedStats(getLevelStats(levelId));
     setFinished(true);
   }
 
   async function handleListen() {
     if (!currentPhrase) return;
-    if (listenState === 'idle' || listenState === 'playing') {
-      setListenState('playing');
-      await playAudio(currentPhrase.audio_path);
+    if (listenState === 'playing') return;
+    if (listenState === 'idle') {
       setListenState('played');
-    } else if (listenState === 'played') {
-      setListenState('revealed');
-      await playAudio(currentPhrase.audio_path);
-    } else {
-      // revealed → play again
-      await playAudio(currentPhrase.audio_path);
     }
+    sessionListens.current += 1;
+    await playAudio(currentPhrase.audio_path);
+  }
+
+  function handleReveal() {
+    setListenState('revealed');
   }
 
   function handleExit() {
@@ -148,12 +199,11 @@ export function PlayScreen({ route, navigation }: Props) {
     ? [theme.bg, '#0a3040'] as const
     : [theme.bgAlt, theme.bg] as const;
 
-  if (finished) {
+  if (finished && finishedStats) {
     return <FinishedView
       levelId={levelId}
-      sessionSeen={sessionSeen}
-      sessionLearned={sessionLearned}
-      totalActive={0}
+      stats={finishedStats}
+      allPhrasesDone={allPhrasesDone}
       navigation={navigation}
       onRepeat={loadPhrases}
       theme={theme}
@@ -199,7 +249,9 @@ export function PlayScreen({ route, navigation }: Props) {
             onSwipeRight={handlePrev}
             onSwipeUp={handleLearn}
             onListenPress={handleListen}
+            onRevealPress={handleReveal}
             enterFrom={enterFrom}
+            canGoPrev={index > 0}
           />
         </View>
 
@@ -216,17 +268,22 @@ export function PlayScreen({ route, navigation }: Props) {
 
 interface FinishedProps {
   levelId: string;
-  sessionSeen: number;
-  sessionLearned: number;
-  totalActive: number;
+  stats: LevelStats;
+  allPhrasesDone: boolean;
   navigation: any;
   onRepeat: () => void;
   theme: ReturnType<typeof useTheme>;
 }
 
-function FinishedView({ sessionSeen, sessionLearned, navigation, onRepeat, theme, levelId }: FinishedProps) {
+function formatTime(totalSeconds: number): string {
+  if (totalSeconds < 60) return `${totalSeconds}s`;
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return s > 0 ? `${m}m ${s}s` : `${m}m`;
+}
+
+function FinishedView({ stats, allPhrasesDone, navigation, onRepeat, theme, levelId }: FinishedProps) {
   const styles = makeFinishedStyles(theme);
-  const { resetLevelProgress } = require('../db/queries');
 
   async function handleReset() {
     await resetLevelProgress(levelId);
@@ -244,26 +301,46 @@ function FinishedView({ sessionSeen, sessionLearned, navigation, onRepeat, theme
 
       <View style={styles.statsBox}>
         <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Frases vistas</Text>
-          <Text style={styles.statValue}>{sessionSeen}</Text>
+          <Text style={styles.statLabel}>Aprendidas</Text>
+          <Text style={[styles.statValue, { color: theme.success }]}>
+            {stats.learnedCount}/{stats.totalPhrases}
+          </Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Marcadas como aprendidas</Text>
-          <Text style={[styles.statValue, { color: theme.success }]}>{sessionLearned}</Text>
+          <Text style={styles.statLabel}>Tiempo en esta lección</Text>
+          <Text style={styles.statValue}>{formatTime(stats.totalTimeSeconds)}</Text>
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.statRow}>
+          <Text style={styles.statLabel}>Escuchas</Text>
+          <Text style={styles.statValue}>{stats.totalListens}</Text>
         </View>
       </View>
 
       <View style={styles.btns}>
-        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={onRepeat}>
-          <Text style={styles.btnText}>Repetir nivel</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
-          <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={() => navigation.goBack()}>
-          <Text style={[styles.btnText, { color: theme.textSub }]}>Volver al menú</Text>
-        </TouchableOpacity>
+        {allPhrasesDone ? (
+          <>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={() => navigation.goBack()}>
+              <Text style={styles.btnText}>Volver al menú</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
+              <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={onRepeat}>
+              <Text style={styles.btnText}>Repetir nivel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
+              <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={() => navigation.goBack()}>
+              <Text style={[styles.btnText, { color: theme.textSub }]}>Volver al menú</Text>
+            </TouchableOpacity>
+          </>
+        )}
       </View>
     </LinearGradient>
   );

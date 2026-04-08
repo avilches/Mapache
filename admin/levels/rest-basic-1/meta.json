@@ -1,12 +1,7 @@
 {
   "id": "rest-basic-1",
   "topicId": "restaurant",
-  "topicName": "Restaurante",
-  "topicIcon": "🍽️",
-  "topicColor": "#2aa198",
-  "topicOrder": 1,
   "title": "Pedir en el restaurante",
   "difficulty": 1,
-  "sort_order": 1,
   "dateAdded": "2024-01-01"
 }

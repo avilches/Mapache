@@ -10,6 +10,13 @@ import {
   saveProgress,
 } from '../store/appStore';
 
+export interface LevelStats {
+  learnedCount: number;
+  totalPhrases: number;
+  totalListens: number;
+  totalTimeSeconds: number;
+}
+
 export type { Topic, Level, Phrase } from '../store/appStore';
 
 export interface PhraseProgress {
@@ -24,7 +31,6 @@ export interface LevelWithProgress {
   topic_id: string;
   title: string;
   difficulty: 1 | 2 | 3;
-  sort_order: number;
   date_added: string;
   total_phrases: number;
   source: string;
@@ -50,7 +56,7 @@ export async function getLevelsByTopic(
 
   let filtered = getLevelsFromStore().filter(l => l.topic_id === topicId);
   if (difficultyFilter > 0) filtered = filtered.filter(l => l.difficulty === difficultyFilter);
-  filtered = [...filtered].sort((a, b) => a.sort_order - b.sort_order || a.date_added.localeCompare(b.date_added));
+  filtered = [...filtered].sort((a, b) => a.id.localeCompare(b.id));
 
   return filtered.map(level => {
     const levelPhraseIds = phrases.filter(p => p.level_id === level.id).map(p => p.id);
@@ -99,13 +105,27 @@ export async function markPhraseSeenInDb(phraseId: string, _levelId: string): Pr
   await saveProgress();
 }
 
-export async function completeLevel(levelId: string): Promise<void> {
+export async function completeLevel(levelId: string, sessionListens = 0, sessionTimeSeconds = 0): Promise<void> {
   const prev = getLevelProgressFromStore()[levelId];
   setLevelProgressEntry(levelId, {
     completedSessions: (prev?.completedSessions ?? 0) + 1,
     lastPlayedAt: new Date().toISOString(),
+    totalListens: (prev?.totalListens ?? 0) + sessionListens,
+    totalTimeSeconds: (prev?.totalTimeSeconds ?? 0) + sessionTimeSeconds,
   });
   await saveProgress();
+}
+
+export function getLevelStats(levelId: string): LevelStats {
+  const phraseProgress = getPhraseProgressFromStore();
+  const allPhrases = getPhrasesFromStore().filter(p => p.level_id === levelId);
+  const lp = getLevelProgressFromStore()[levelId];
+  return {
+    learnedCount: allPhrases.filter(p => phraseProgress[p.id]?.learned).length,
+    totalPhrases: allPhrases.length,
+    totalListens: lp?.totalListens ?? 0,
+    totalTimeSeconds: lp?.totalTimeSeconds ?? 0,
+  };
 }
 
 export async function resetLevelProgress(levelId: string): Promise<void> {

@@ -1,12 +1,7 @@
 {
   "id": "trav-basic-1",
   "topicId": "travel",
-  "topicName": "Viajes",
-  "topicIcon": "✈️",
-  "topicColor": "#859900",
-  "topicOrder": 2,
   "title": "En el aeropuerto",
   "difficulty": 1,
-  "sort_order": 1,
   "dateAdded": "2024-01-01"
 }

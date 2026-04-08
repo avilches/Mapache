@@ -3,6 +3,7 @@
 Sincroniza todos los levels de admin/levels/ con la app móvil.
 
 Qué hace:
+  0. Copia admin/topics.json → mobile/assets/topics.json
   1. Para cada level en admin/levels/ (que tenga audio generado):
      - Genera un ZIP en mobile/assets/levels/<id>.zip
        Contenido: <id>/meta.json + <id>/phrases.json + <id>/audio/*.mp3
@@ -15,6 +16,7 @@ Uso: python sync_mobile.py
 import csv
 import json
 import os
+import shutil
 import sys
 import zipfile
 
@@ -22,6 +24,8 @@ LEVELS_DIR = os.path.join(os.path.dirname(__file__), "levels")
 MOBILE_DIR = os.path.join(os.path.dirname(__file__), "..", "mobile")
 ASSETS_LEVELS_OUT = os.path.join(MOBILE_DIR, "assets", "levels")
 APP_STORE_TS = os.path.join(MOBILE_DIR, "src", "store", "appStore.ts")
+TOPICS_JSON_SRC = os.path.join(os.path.dirname(__file__), "topics.json")
+TOPICS_JSON_DST = os.path.join(MOBILE_DIR, "assets", "topics.json")
 
 
 # ── helpers ──────────────────────────────────────────────────────────────────
@@ -120,10 +124,23 @@ def update_app_store_ts(levels: list[dict]) -> None:
         f.write(new_content)
 
 
+# ── step 0: copy topics.json ─────────────────────────────────────────────────
+
+def copy_topics_json() -> None:
+    if not os.path.isfile(TOPICS_JSON_SRC):
+        print("  [error] No se encontró admin/topics.json")
+        sys.exit(1)
+    shutil.copy2(TOPICS_JSON_SRC, TOPICS_JSON_DST)
+    print(f"  [topics] Copiado topics.json → {TOPICS_JSON_DST}")
+
+
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
-    print("Leyendo levels...")
+    print("Copiando topics.json...")
+    copy_topics_json()
+
+    print("\nLeyendo levels...")
     levels = load_all_levels()
     if not levels:
         print("No hay levels con audio. Ejecuta generate_audio.py primero.")

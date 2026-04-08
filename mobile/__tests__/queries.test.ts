@@ -5,17 +5,18 @@
  * query logic (filtering, sorting, progress aggregation) in isolation.
  */
 
+// Mock topics.json so tests can use topicId 'test' and 'other'
+jest.mock('../assets/topics.json', () => [
+  { id: 'test', name: 'Test', icon: '🧪', color: '#268bd2' },
+  { id: 'other', name: 'Other', icon: '🔥', color: '#dc322f' },
+]);
+
 // Data fixtures
 const MOCK_META_TEST: Record<string, any> = {
   id: 'test-basic-1',
   topicId: 'test',
-  topicName: 'Test',
-  topicIcon: '🧪',
-  topicColor: '#268bd2',
-  topicOrder: 0,
   title: 'Test Basic 1',
   difficulty: 1,
-  sort_order: 1,
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -23,13 +24,8 @@ const MOCK_META_TEST: Record<string, any> = {
 const MOCK_META_INTERM: Record<string, any> = {
   id: 'test-interm-1',
   topicId: 'test',
-  topicName: 'Test',
-  topicIcon: '🧪',
-  topicColor: '#268bd2',
-  topicOrder: 0,
   title: 'Test Interm 1',
   difficulty: 2,
-  sort_order: 2,
   dateAdded: '2024-02-01',
   source: 'bundled',
 };
@@ -37,13 +33,8 @@ const MOCK_META_INTERM: Record<string, any> = {
 const MOCK_META_OTHER_TOPIC: Record<string, any> = {
   id: 'other-basic-1',
   topicId: 'other',
-  topicName: 'Other',
-  topicIcon: '🔥',
-  topicColor: '#dc322f',
-  topicOrder: 1,
   title: 'Other Basic 1',
   difficulty: 1,
-  sort_order: 1,
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -149,12 +140,10 @@ describe('getLevelsByTopic', () => {
     expect(levels).toHaveLength(2);
   });
 
-  test('levels are sorted by sort_order ascending', async () => {
-    // Seed in reverse order to confirm sort
-    const metaHigh = { ...MOCK_META_INTERM, sort_order: 10 };
-    const metaLow = { ...MOCK_META_TEST, sort_order: 1 };
-    seedLevel(metaHigh, TWO_PHRASES);
-    seedLevel(metaLow, TWO_PHRASES);
+  test('levels are sorted alphabetically by id', async () => {
+    // Seed in reverse filesystem order; sort must be by id
+    seedLevel(MOCK_META_INTERM, TWO_PHRASES); // test-interm-1
+    seedLevel(MOCK_META_TEST, TWO_PHRASES);   // test-basic-1
 
     const { scanInstalledLevels } = require('../src/store/appStore');
     await scanInstalledLevels();
@@ -162,7 +151,8 @@ describe('getLevelsByTopic', () => {
     const { getLevelsByTopic } = require('../src/db/queries');
     const levels = await getLevelsByTopic('test');
 
-    expect(levels[0].sort_order).toBeLessThan(levels[1].sort_order);
+    expect(levels[0].id).toBe('test-basic-1');
+    expect(levels[1].id).toBe('test-interm-1');
   });
 
   test('learned_count is 0 when no phrases are marked learned', async () => {

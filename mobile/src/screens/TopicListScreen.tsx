@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   View,
   Text,
@@ -9,23 +9,24 @@ import {
 } from 'react-native';
 
 import { LinearGradient } from 'expo-linear-gradient';
+import { useFocusEffect } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
 import { getTopics, Topic } from '../db/queries';
 import { useSettingsStore } from '../store/settingsStore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
-import type { PracticeStackParamList } from '../../App';
+import type { RootStackParamList } from '../../App';
 
-type Props = NativeStackScreenProps<PracticeStackParamList, 'TopicList'>;
+type Props = NativeStackScreenProps<RootStackParamList, 'TopicList'>;
 
 export function TopicListScreen({ navigation }: Props) {
   const theme = useTheme();
   const styles = makeStyles(theme);
+  const insets = useSafeAreaInsets();
   const { setLastTopic } = useSettingsStore();
   const [topics, setTopics] = useState<Topic[]>([]);
 
-  useEffect(() => {
-    getTopics().then(setTopics);
-  }, []);
+  useFocusEffect(useCallback(() => { getTopics().then(setTopics); }, []));
 
   async function handleSelectTopic(t: Topic) {
     await setLastTopic(t.id);
@@ -40,8 +41,11 @@ export function TopicListScreen({ navigation }: Props) {
     <LinearGradient colors={gradientColors} style={styles.container}>
       <StatusBar barStyle={theme.name === 'dark' ? 'light-content' : 'dark-content'} />
 
-      <View style={styles.header}>
+      <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
         <Text style={styles.title}>Elige un tema</Text>
+        <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
+          <Text style={styles.settingsIcon}>⚙️</Text>
+        </TouchableOpacity>
       </View>
 
       <FlatList
@@ -69,8 +73,10 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
   return StyleSheet.create({
     container: { flex: 1 },
     header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingTop: 56,
       paddingBottom: 16,
     },
     title: {
@@ -78,6 +84,17 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       fontWeight: '800',
       color: theme.textBold,
     },
+    settingsBtn: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 22,
+      backgroundColor: theme.bgPanel,
+      borderWidth: 1,
+      borderColor: theme.border,
+    },
+    settingsIcon: { fontSize: 20 },
     list: {
       padding: 16,
       gap: 12,

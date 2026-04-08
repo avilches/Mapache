@@ -31,13 +31,12 @@ else:
 PACKS_DIR = os.path.join(ROOT, "admin", "levels")
 ZIPS_DIR = os.path.join(ROOT, "mobile", "assets", "levels")
 APP_STORE_TS = os.path.join(ROOT, "mobile", "src", "store", "appStore.ts")
+TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
+TOPICS_JSON_MOBILE = os.path.join(ROOT, "mobile", "assets", "topics.json")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-REQUIRED_META_FIELDS = {
-    "id", "topicId", "topicName", "topicIcon", "topicColor",
-    "topicOrder", "title", "difficulty", "sort_order", "dateAdded",
-}
+REQUIRED_META_FIELDS = {"id", "topicId", "title", "difficulty", "dateAdded"}
 VALID_DIFFICULTIES = {1, 2, 3}
 PACK_NAME_RE = re.compile(r"^[a-z0-9]+-(?:basic|interm|adv)-\d+$")
 BUNDLED_ZIPS_RE = re.compile(
@@ -72,9 +71,40 @@ def parse_bundled_zips(ts_source: str) -> list[str]:
     return BUNDLED_ENTRY_RE.findall(block)
 
 
+# ─── Validación topics.json ───────────────────────────────────────────────────
+
+def validate_topics_json() -> tuple[set[str], list[str]]:
+    """Valida admin/topics.json y mobile/assets/topics.json.
+    Devuelve (valid_topic_ids, errores)."""
+    errors = []
+    valid_ids: set[str] = set()
+
+    for path, label in [(TOPICS_JSON, "admin/topics.json"), (TOPICS_JSON_MOBILE, "mobile/assets/topics.json")]:
+        if not os.path.isfile(path):
+            errors.append(f"Archivo no encontrado: {path}")
+            continue
+        try:
+            with open(path, encoding="utf-8") as f:
+                data = json.load(f)
+            if not isinstance(data, list):
+                errors.append(f"{label}: debe ser un array JSON")
+                continue
+            required = {"id", "name", "icon", "color"}
+            for i, t in enumerate(data):
+                missing = required - set(t.keys())
+                if missing:
+                    errors.append(f"{label}[{i}]: faltan campos {sorted(missing)}")
+                else:
+                    valid_ids.add(t["id"])
+        except json.JSONDecodeError as e:
+            errors.append(f"{label}: JSON inválido: {e}")
+
+    return valid_ids, errors
+
+
 # ─── Validación admin/packs/ ──────────────────────────────────────────────────
 
-def validate_admin_levels() -> tuple[list[dict], list[str]]:
+def validate_admin_levels(valid_topic_ids: set[str] | None = None) -> tuple[list[dict], list[str]]:
     """Valida todos los levels en admin/levels/.
     Devuelve (level_infos, errores_globales)."""
     global_errors = []
@@ -124,6 +154,11 @@ def validate_admin_levels() -> tuple[list[dict], list[str]]:
                     errors.append(
                         f"meta.json difficulty={meta.get('difficulty')!r} "
                         f"no está en {VALID_DIFFICULTIES}"
+                    )
+                if valid_topic_ids and meta.get("topicId") not in valid_topic_ids:
+                    errors.append(
+                        f"meta.json topicId={meta.get('topicId')!r} "
+                        f"no existe en topics.json"
                     )
             except json.JSONDecodeError as e:
                 errors.append(f"meta.json JSON inválido: {e}")
@@ -261,7 +296,7 @@ def validate_zips(admin_packs: list[dict]) -> tuple[list[dict], list[str]]:
                 if zip_meta and pack_id in admin_meta_by_id:
                     admin_meta = admin_meta_by_id[pack_id]
                     mismatches = []
-                    for field in ("id", "topicId", "title", "difficulty", "sort_order"):
+                    for field in ("id", "topicId", "title", "difficulty"):
                         if zip_meta.get(field) != admin_meta.get(field):
                             mismatches.append(
                                 f"{field}: ZIP={zip_meta.get(field)!r} "
@@ -341,8 +376,18 @@ def main() -> int:
     print("Validando levels...\n")
     total_errors = 0
 
+    # 0. topics.json
+    valid_topic_ids, topics_errors = validate_topics_json()
+    print(f"topics.json ({len(valid_topic_ids)} topics):")
+    if topics_errors:
+        for e in topics_errors:
+            print(f"  ✗ {e}")
+            total_errors += len(topics_errors)
+    else:
+        print(f"  ✓ admin/topics.json y mobile/assets/topics.json OK: {sorted(valid_topic_ids)}")
+
     # 1. admin/levels/
-    admin_packs, admin_global_errors = validate_admin_levels()
+    admin_packs, admin_global_errors = validate_admin_levels(valid_topic_ids if not topics_errors else None)
     for e in admin_global_errors:
         print(f"  ERROR GLOBAL: {e}")
         total_errors += 1

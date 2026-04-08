@@ -1,12 +1,7 @@
 {
   "id": "daily-interm-2",
   "topicId": "daily",
-  "topicName": "Vida cotidiana",
-  "topicIcon": "💬",
-  "topicColor": "#cb4b16",
-  "topicOrder": 3,
   "title": "Tercera persona 2",
   "difficulty": 2,
-  "sort_order": 2,
   "dateAdded": "2026-04-04"
 }

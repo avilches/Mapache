@@ -1,12 +1,7 @@
 {
   "id": "greet-adv-1",
   "topicId": "greetings",
-  "topicName": "Saludos",
-  "topicIcon": "👋",
-  "topicColor": "#268bd2",
-  "topicOrder": 0,
   "title": "Expresiones avanzadas",
   "difficulty": 3,
-  "sort_order": 3,
   "dateAdded": "2024-01-01"
 }

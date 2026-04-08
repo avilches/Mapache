@@ -1,12 +1,7 @@
 {
   "id": "rest-adv-1",
   "topicId": "restaurant",
-  "topicName": "Restaurante",
-  "topicIcon": "🍽️",
-  "topicColor": "#2aa198",
-  "topicOrder": 1,
   "title": "Conversación fluida",
   "difficulty": 3,
-  "sort_order": 3,
   "dateAdded": "2024-01-01"
 }
