@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   StatusBar,
   Platform,
-  Alert,
   AppState,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,18 +13,24 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { PhraseCard } from '../components/PhraseCard';
+import { PhraseCard, PhraseCardHandle } from '../components/PhraseCard';
 import { useAudio } from '../hooks/useAudio';
 import {
-  getActivePhrases,
-  markPhraseLearnedInDb,
-  markPhraseSeenInDb,
+  ratePhraseInDb,
+  buildSessionQueue,
+  reinsertHard,
   completeLevel,
   resetLevelProgress,
   getLevelStats,
+  getNextLevelId,
   LevelStats,
   Phrase,
+  PhraseRating,
 } from '../db/queries';
+import {
+  getLevelsFromStore,
+  getPhraseProgressFromStore,
+} from '../store/appStore';
 import { useSettingsStore } from '../store/settingsStore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -34,30 +39,49 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Play'>;
 type ListenState = 'idle' | 'playing' | 'played' | 'revealed';
 
 export function PlayScreen({ route, navigation }: Props) {
-  const { levelId, levelTitle } = route.params;
+  const { levelId, levelTitle, topicId } = route.params;
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const styles = makeStyles(theme);
   const { playAudio, stopAudio } = useAudio();
   const markLevelSeen = useSettingsStore(s => s.markLevelSeen);
+  const difficultyFilter = useSettingsStore(s => s.difficultyFilter);
 
-  const [phrases, setPhrases] = useState<Phrase[]>([]);
-  const [index, setIndex] = useState(0);
+  // Cola mutable + cursor
+  const queueRef = useRef<Phrase[]>([]);
+  const reinsertCountRef = useRef<Map<string, number>>(new Map());
+  const [queueVersion, setQueueVersion] = useState(0); // bump cuando la cola cambia
+  const [cursor, setCursor] = useState(0);
+
   const [listenState, setListenState] = useState<ListenState>('idle');
   const [enterFrom, setEnterFrom] = useState<'right' | 'left'>('right');
   const [finished, setFinished] = useState(false);
-  const [allPhrasesDone, setAllPhrasesDone] = useState(false);
   const [finishedStats, setFinishedStats] = useState<LevelStats | null>(null);
-  const seenInSession = useRef<Set<string>>(new Set());
+
+  const cardRef = useRef<PhraseCardHandle>(null);
   const sessionListens = useRef(0);
-  const sessionActiveMs = useRef(0);   // ms acumulados en foreground
-  const segmentStart = useRef(0);      // inicio del segmento foreground actual
+  const sessionActiveMs = useRef(0);
+  const segmentStart = useRef(0);
+
+  const startSession = useCallback(() => {
+    queueRef.current = buildSessionQueue(levelId);
+    reinsertCountRef.current = new Map();
+    sessionListens.current = 0;
+    sessionActiveMs.current = 0;
+    segmentStart.current = Date.now();
+    setQueueVersion(v => v + 1);
+    setCursor(0);
+    setListenState('idle');
+    setEnterFrom('right');
+    setFinished(false);
+    setFinishedStats(null);
+  }, [levelId]);
 
   useFocusEffect(useCallback(() => {
-    loadPhrases();
+    startSession();
     markLevelSeen(levelId);
     return () => { stopAudio(); };
-  }, [levelId]));
+  }, [levelId, startSession]));
 
   // Pausar timer cuando la app va a background
   useEffect(() => {
@@ -71,107 +95,65 @@ export function PlayScreen({ route, navigation }: Props) {
     return () => sub.remove();
   }, []);
 
-  // Keyboard support for Mac/simulator
+  // Keyboard support (web/simulator Mac): ↑ easy, ↓ hard, ← ok, → atrás
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'ArrowRight') handleNext();
-      if (e.key === 'ArrowLeft') handlePrev();
-      if (e.key === 'ArrowUp') handleLearn();
+      if (e.key === 'ArrowUp') cardRef.current?.triggerEasy();
+      else if (e.key === 'ArrowDown') cardRef.current?.triggerHard();
+      else if (e.key === 'ArrowLeft') cardRef.current?.triggerOk();
+      else if (e.key === 'ArrowRight') cardRef.current?.triggerPrev();
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [index, phrases]);
+  }, []);
 
-  async function loadPhrases() {
-    const data = await getActivePhrases(levelId);
-    if (data.length === 0) {
-      Alert.alert(
-        'Unidad ya aprendida',
-        '¿Empezar de cero?',
-        [
-          { text: 'No', style: 'cancel', onPress: () => navigation.goBack() },
-          {
-            text: 'Sí', onPress: async () => {
-              await resetLevelProgress(levelId);
-              const fresh = await getActivePhrases(levelId);
-              sessionListens.current = 0;
-              sessionActiveMs.current = 0;
-              segmentStart.current = Date.now();
-              seenInSession.current = new Set();
-              setPhrases(fresh);
-              setIndex(0);
-              setListenState('idle');
-              setFinished(false);
-              setAllPhrasesDone(false);
-            },
-          },
-        ]
-      );
-      return;
-    }
-    sessionListens.current = 0;
-    sessionActiveMs.current = 0;
-    segmentStart.current = Date.now();
-    seenInSession.current = new Set();
-    setPhrases(data);
-    setIndex(0);
-    setListenState('idle');
-    setFinished(false);
-    setAllPhrasesDone(false);
-  }
+  const queue = queueRef.current;
+  const currentPhrase = queue[cursor];
 
-  const currentPhrase = phrases[index];
-
-  async function handleNext() {
-    if (!currentPhrase) return;
-    await stopAudio();
-
-    if (!seenInSession.current.has(currentPhrase.id)) {
-      seenInSession.current.add(currentPhrase.id);
-      await markPhraseSeenInDb(currentPhrase.id, levelId);
-    }
-
-    if (index < phrases.length - 1) {
+  function advance() {
+    const nextCursor = cursor + 1;
+    if (nextCursor >= queueRef.current.length) {
+      finishSession();
+    } else {
       setEnterFrom('right');
       setListenState('idle');
-      setIndex(i => i + 1);
-    } else {
-      await finishSession(false);
+      setCursor(nextCursor);
     }
   }
+
+  async function handleRate(rating: PhraseRating) {
+    if (!currentPhrase) return;
+    await stopAudio();
+    await ratePhraseInDb(currentPhrase.id, levelId, rating);
+    if (rating === 'hard') {
+      queueRef.current = reinsertHard(
+        queueRef.current,
+        cursor,
+        currentPhrase,
+        reinsertCountRef.current
+      );
+      setQueueVersion(v => v + 1);
+    }
+    advance();
+  }
+
+  async function handleEasy() { await handleRate('easy'); }
+  async function handleOk() { await handleRate('ok'); }
+  async function handleHard() { await handleRate('hard'); }
 
   async function handlePrev() {
-    if (index > 0) {
-      await stopAudio();
-      setEnterFrom('left');
-      setListenState('idle');
-      setIndex(i => i - 1);
-    }
-  }
-
-  async function handleLearn() {
-    if (!currentPhrase) return;
+    if (cursor <= 0) return;
     await stopAudio();
-    await markPhraseLearnedInDb(currentPhrase.id, levelId);
-
-    const newPhrases = phrases.filter((_, i) => i !== index);
-    setPhrases(newPhrases);
-
-    if (newPhrases.length === 0) {
-      await finishSession(true);
-    } else {
-      setEnterFrom('right');
-      setListenState('idle');
-      setIndex(i => Math.min(i, newPhrases.length - 1));
-    }
+    setEnterFrom('left');
+    setListenState('idle');
+    setCursor(c => Math.max(0, c - 1));
   }
 
-  async function finishSession(allDone: boolean) {
+  async function finishSession() {
     const totalActiveMs = sessionActiveMs.current + (Date.now() - segmentStart.current);
     const sessionSecs = Math.round(totalActiveMs / 1000);
     await completeLevel(levelId, sessionListens.current, sessionSecs);
-    setAllPhrasesDone(allDone);
     setFinishedStats(getLevelStats(levelId));
     setFinished(true);
   }
@@ -202,10 +184,11 @@ export function PlayScreen({ route, navigation }: Props) {
   if (finished && finishedStats) {
     return <FinishedView
       levelId={levelId}
+      topicId={topicId}
+      difficultyFilter={difficultyFilter}
       stats={finishedStats}
-      allPhrasesDone={allPhrasesDone}
       navigation={navigation}
-      onRepeat={loadPhrases}
+      onRepeat={startSession}
       theme={theme}
     />;
   }
@@ -218,6 +201,10 @@ export function PlayScreen({ route, navigation }: Props) {
     );
   }
 
+  const prog = getPhraseProgressFromStore()[currentPhrase.id];
+  const seenCount = prog?.seenCount ?? 0;
+  const lastRating = prog?.lastRating ?? null;
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <LinearGradient colors={gradientColors} style={styles.container}>
@@ -229,35 +216,34 @@ export function PlayScreen({ route, navigation }: Props) {
             <Text style={styles.exitText}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{levelTitle}</Text>
-          <Text style={styles.counter}>{index + 1}/{phrases.length}</Text>
+          <Text style={styles.counter}>{cursor + 1}/{queue.length}</Text>
         </View>
 
         {/* Progress bar */}
         <View style={styles.progressBg}>
           <View style={[styles.progressFill, {
-            width: `${((index) / Math.max(phrases.length, 1)) * 100}%`
+            width: `${(cursor / Math.max(queue.length, 1)) * 100}%`
           }]} />
         </View>
 
         {/* Card */}
         <View style={styles.cardContainer}>
           <PhraseCard
-            key={currentPhrase.id}
+            ref={cardRef}
+            key={`${currentPhrase.id}-${cursor}-${queueVersion}`}
             phrase={currentPhrase}
             listenState={listenState}
-            onSwipeLeft={handleNext}
+            onSwipeUp={handleEasy}
+            onSwipeLeft={handleOk}
+            onSwipeDown={handleHard}
             onSwipeRight={handlePrev}
-            onSwipeUp={handleLearn}
             onListenPress={handleListen}
             onRevealPress={handleReveal}
             enterFrom={enterFrom}
-            canGoPrev={index > 0}
+            canGoPrev={cursor > 0}
+            seenCount={seenCount}
+            lastRating={lastRating}
           />
-        </View>
-
-        {/* Bottom hint */}
-        <View style={styles.bottomHint}>
-          <Text style={styles.hintText}>Desliza ↑ para marcar como aprendida</Text>
         </View>
       </LinearGradient>
     </GestureHandlerRootView>
@@ -268,8 +254,9 @@ export function PlayScreen({ route, navigation }: Props) {
 
 interface FinishedProps {
   levelId: string;
+  topicId: string;
+  difficultyFilter: 0 | 1 | 2 | 3;
   stats: LevelStats;
-  allPhrasesDone: boolean;
   navigation: any;
   onRepeat: () => void;
   theme: ReturnType<typeof useTheme>;
@@ -282,12 +269,29 @@ function formatTime(totalSeconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function FinishedView({ stats, allPhrasesDone, navigation, onRepeat, theme, levelId }: FinishedProps) {
+function FinishedView({ stats, navigation, onRepeat, theme, levelId, topicId, difficultyFilter }: FinishedProps) {
   const styles = makeFinishedStyles(theme);
+  const [nextLevelId, setNextLevelId] = useState<string | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      const next = await getNextLevelId(levelId, topicId, difficultyFilter);
+      setNextLevelId(next);
+    })();
+  }, [levelId, topicId, difficultyFilter]);
+
+  const nextLevelTitle = nextLevelId
+    ? getLevelsFromStore().find(l => l.id === nextLevelId)?.title ?? ''
+    : '';
 
   async function handleReset() {
     await resetLevelProgress(levelId);
     onRepeat();
+  }
+
+  function handleNextLevel() {
+    if (!nextLevelId) return;
+    navigation.replace('Play', { levelId: nextLevelId, levelTitle: nextLevelTitle, topicId });
   }
 
   const gradientColors = theme.name === 'dark'
@@ -301,9 +305,9 @@ function FinishedView({ stats, allPhrasesDone, navigation, onRepeat, theme, leve
 
       <View style={styles.statsBox}>
         <View style={styles.statRow}>
-          <Text style={styles.statLabel}>Aprendidas</Text>
+          <Text style={styles.statLabel}>Dominadas</Text>
           <Text style={[styles.statValue, { color: theme.success }]}>
-            {stats.learnedCount}/{stats.totalPhrases}
+            {stats.masteredCount}/{stats.totalPhrases}
           </Text>
         </View>
         <View style={styles.divider} />
@@ -319,28 +323,22 @@ function FinishedView({ stats, allPhrasesDone, navigation, onRepeat, theme, leve
       </View>
 
       <View style={styles.btns}>
-        {allPhrasesDone ? (
-          <>
-            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={() => navigation.goBack()}>
-              <Text style={styles.btnText}>Volver al menú</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
-              <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
-            </TouchableOpacity>
-          </>
+        {nextLevelId ? (
+          <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={handleNextLevel}>
+            <Text style={styles.btnText}>Siguiente nivel →</Text>
+          </TouchableOpacity>
         ) : (
-          <>
-            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.primary }]} onPress={onRepeat}>
-              <Text style={styles.btnText}>Repetir nivel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
-              <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={() => navigation.goBack()}>
-              <Text style={[styles.btnText, { color: theme.textSub }]}>Volver al menú</Text>
-            </TouchableOpacity>
-          </>
+          <Text style={styles.lastLevelText}>Último nivel del tema</Text>
         )}
+        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={onRepeat}>
+          <Text style={[styles.btnText, { color: theme.textSub }]}>Repetir nivel</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
+          <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={() => navigation.goBack()}>
+          <Text style={[styles.btnText, { color: theme.textSub }]}>Volver al menú</Text>
+        </TouchableOpacity>
       </View>
     </LinearGradient>
   );
@@ -376,14 +374,6 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    bottomHint: {
-      paddingBottom: 40,
-      alignItems: 'center',
-    },
-    hintText: {
-      fontSize: 13,
-      color: theme.inactive,
     },
     emptyText: {
       color: theme.textSub,
@@ -433,5 +423,11 @@ function makeFinishedStyles(theme: ReturnType<typeof useTheme>) {
       alignItems: 'center',
     },
     btnText: { fontSize: 16, fontWeight: '600', color: theme.onPrimary },
+    lastLevelText: {
+      fontSize: 14,
+      color: theme.textSub,
+      textAlign: 'center',
+      fontStyle: 'italic',
+    },
   });
 }

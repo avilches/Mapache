@@ -77,16 +77,16 @@ export function LevelListScreen({ route, navigation }: Props) {
 
   function renderLevel({ item }: { item: LevelWithProgress }) {
     const progress = item.total_phrases > 0
-      ? item.learned_count / item.total_phrases
+      ? item.mastered_count / item.total_phrases
       : 0;
-    const isComplete = item.learned_count >= item.total_phrases && item.total_phrases > 0;
+    const isComplete = item.mastered_count >= item.total_phrases && item.total_phrases > 0;
     const diffColor = difficultyColor(item.difficulty, theme);
     const isNew = isNewLevel(item.date_added) && !seenLevelIds.includes(item.id);
 
     return (
       <TouchableOpacity
         style={[styles.levelCard, isComplete && styles.levelCardComplete]}
-        onPress={() => navigation.navigate('Play', { levelId: item.id, levelTitle: item.title })}
+        onPress={() => navigation.navigate('Play', { levelId: item.id, levelTitle: item.title, topicId })}
         activeOpacity={0.8}
       >
         <View style={styles.levelHeader}>
@@ -122,7 +122,7 @@ export function LevelListScreen({ route, navigation }: Props) {
             <View style={[styles.progressBarFill, { width: `${progress * 100}%`, backgroundColor: topicData?.color ?? theme.primary }]} />
           </View>
           <Text style={styles.progressText}>
-            {item.learned_count}/{item.total_phrases}
+            {item.mastered_count}/{item.total_phrases}
           </Text>
         </View>
 

@@ -71,15 +71,17 @@ describe('loadProgress / saveProgress', () => {
 
   test('saveProgress persists and loadProgress restores data', async () => {
     const {
-      loadProgress,
       saveProgress,
       setPhraseProgressEntry,
       setLevelProgressEntry,
-      getPhraseProgressFromStore,
-      getLevelProgressFromStore,
     } = require('../src/store/appStore');
 
-    setPhraseProgressEntry('phrase-1', { learned: true, seenCount: 3 });
+    setPhraseProgressEntry('phrase-1', {
+      rating: -2,
+      seenCount: 3,
+      lastRating: 'easy',
+      lastSeenAt: 1700000000000,
+    });
     setLevelProgressEntry('level-1', { completedSessions: 2, lastPlayedAt: '2024-01-01T00:00:00.000Z' });
 
     await saveProgress();
@@ -91,8 +93,10 @@ describe('loadProgress / saveProgress', () => {
     await store2.loadProgress();
 
     expect(store2.getPhraseProgressFromStore()['phrase-1']).toEqual({
-      learned: true,
+      rating: -2,
       seenCount: 3,
+      lastRating: 'easy',
+      lastSeenAt: 1700000000000,
     });
     expect(store2.getLevelProgressFromStore()['level-1']).toEqual({
       completedSessions: 2,
@@ -102,14 +106,21 @@ describe('loadProgress / saveProgress', () => {
     });
   });
 
-  test('loadProgress with partial data (only phraseProgress key)', async () => {
+  test('loadProgress with partial data (only phraseProgress key, modern schema)', async () => {
     const AsyncStorage = require('@react-native-async-storage/async-storage').default;
-    await AsyncStorage.setItem('progress', JSON.stringify({ phraseProgress: { 'p-1': { learned: false, seenCount: 1 } } }));
+    await AsyncStorage.setItem('progress', JSON.stringify({
+      phraseProgress: { 'p-1': { rating: 1, seenCount: 1, lastRating: 'hard', lastSeenAt: 100 } },
+    }));
 
     const { loadProgress, getPhraseProgressFromStore, getLevelProgressFromStore } = require('../src/store/appStore');
     await loadProgress();
 
-    expect(getPhraseProgressFromStore()['p-1']).toEqual({ learned: false, seenCount: 1 });
+    expect(getPhraseProgressFromStore()['p-1']).toEqual({
+      rating: 1,
+      seenCount: 1,
+      lastRating: 'hard',
+      lastSeenAt: 100,
+    });
     expect(getLevelProgressFromStore()).toEqual({});
   });
 });
@@ -223,27 +234,40 @@ describe('setPhraseProgressEntry', () => {
   test('creates new entry with defaults merged', () => {
     const { setPhraseProgressEntry, getPhraseProgressFromStore } = require('../src/store/appStore');
 
-    setPhraseProgressEntry('p-1', { learned: true });
+    setPhraseProgressEntry('p-1', { rating: 2 });
 
-    expect(getPhraseProgressFromStore()['p-1']).toEqual({ learned: true, seenCount: 0 });
+    expect(getPhraseProgressFromStore()['p-1']).toEqual({
+      rating: 2,
+      seenCount: 0,
+      lastRating: null,
+      lastSeenAt: null,
+    });
   });
 
   test('updates existing entry without overwriting unspecified fields', () => {
     const { setPhraseProgressEntry, getPhraseProgressFromStore } = require('../src/store/appStore');
 
-    setPhraseProgressEntry('p-1', { learned: false, seenCount: 5 });
+    setPhraseProgressEntry('p-1', { rating: -1, seenCount: 5, lastRating: 'easy', lastSeenAt: 42 });
     setPhraseProgressEntry('p-1', { seenCount: 6 });
 
-    expect(getPhraseProgressFromStore()['p-1']).toEqual({ learned: false, seenCount: 6 });
+    expect(getPhraseProgressFromStore()['p-1']).toEqual({
+      rating: -1,
+      seenCount: 6,
+      lastRating: 'easy',
+      lastSeenAt: 42,
+    });
   });
 
-  test('sets learned=false for brand new entry when only seenCount specified', () => {
+  test('defaults to rating=0 and lastRating=null for brand new entry when only seenCount specified', () => {
     const { setPhraseProgressEntry, getPhraseProgressFromStore } = require('../src/store/appStore');
 
     setPhraseProgressEntry('p-new', { seenCount: 2 });
 
-    expect(getPhraseProgressFromStore()['p-new'].learned).toBe(false);
-    expect(getPhraseProgressFromStore()['p-new'].seenCount).toBe(2);
+    const entry = getPhraseProgressFromStore()['p-new'];
+    expect(entry.rating).toBe(0);
+    expect(entry.seenCount).toBe(2);
+    expect(entry.lastRating).toBe(null);
+    expect(entry.lastSeenAt).toBe(null);
   });
 });
 
@@ -284,8 +308,8 @@ describe('deleteLevelFromStore', () => {
     await scanInstalledLevels();
 
     // Seed some progress
-    setPhraseProgressEntry('test-basic-1-1', { learned: true, seenCount: 3 });
-    setPhraseProgressEntry('test-basic-1-2', { learned: false, seenCount: 1 });
+    setPhraseProgressEntry('test-basic-1-1', { rating: -1, seenCount: 3, lastRating: 'easy', lastSeenAt: 1 });
+    setPhraseProgressEntry('test-basic-1-2', { rating: 0, seenCount: 1, lastRating: 'ok', lastSeenAt: 2 });
     setLevelProgressEntry('test-basic-1', { completedSessions: 1, lastPlayedAt: '2024-01-01T00:00:00.000Z' });
 
     deleteLevelFromStore('test-basic-1');

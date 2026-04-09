@@ -31,9 +31,48 @@ export interface Phrase {
   sort_order: number;
 }
 
+export type PhraseRating = 'easy' | 'ok' | 'hard';
+
 export interface PhraseProg {
-  learned: boolean;
+  rating: number;
   seenCount: number;
+  lastRating: PhraseRating | null;
+  lastSeenAt: number | null;
+}
+
+const DEFAULT_PHRASE_PROG: PhraseProg = {
+  rating: 0,
+  seenCount: 0,
+  lastRating: null,
+  lastSeenAt: null,
+};
+
+// Migración desde el esquema antiguo ({ learned: boolean; seenCount: number }).
+// Devuelve true si se detectó y migró alguna entry legacy.
+function migrateLegacyPhraseProgress(
+  old: Record<string, any>
+): { migrated: Record<string, PhraseProg>; didMigrate: boolean } {
+  const migrated: Record<string, PhraseProg> = {};
+  let didMigrate = false;
+  for (const [key, entry] of Object.entries(old ?? {})) {
+    if (entry && typeof entry.learned === 'boolean') {
+      didMigrate = true;
+      migrated[key] = {
+        rating: entry.learned ? -3 : 0,
+        seenCount: entry.seenCount ?? 0,
+        lastRating: entry.learned ? 'easy' : null,
+        lastSeenAt: null,
+      };
+    } else if (entry && typeof entry.rating === 'number') {
+      migrated[key] = {
+        rating: entry.rating,
+        seenCount: entry.seenCount ?? 0,
+        lastRating: entry.lastRating ?? null,
+        lastSeenAt: entry.lastSeenAt ?? null,
+      };
+    }
+  }
+  return { migrated, didMigrate };
 }
 
 export interface LevelProg {
@@ -107,10 +146,13 @@ async function extractZipBytes(bytes: Uint8Array, destDir: string): Promise<void
 
 export async function loadProgress(): Promise<void> {
   const raw = await AsyncStorage.getItem(PROGRESS_KEY);
-  if (raw) {
-    const p = JSON.parse(raw);
-    phraseProgress = p.phraseProgress ?? {};
-    levelProgress = p.levelProgress ?? {};
+  if (!raw) return;
+  const p = JSON.parse(raw);
+  const { migrated, didMigrate } = migrateLegacyPhraseProgress(p.phraseProgress ?? {});
+  phraseProgress = migrated;
+  levelProgress = p.levelProgress ?? {};
+  if (didMigrate) {
+    await saveProgress();
   }
 }
 
@@ -214,7 +256,7 @@ export function getLevelProgressFromStore(): Record<string, LevelProg> { return 
 
 export function setPhraseProgressEntry(phraseId: string, data: Partial<PhraseProg>): void {
   phraseProgress[phraseId] = {
-    ...(phraseProgress[phraseId] ?? { learned: false, seenCount: 0 }),
+    ...(phraseProgress[phraseId] ?? DEFAULT_PHRASE_PROG),
     ...data,
   };
 }

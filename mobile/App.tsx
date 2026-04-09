@@ -17,7 +17,7 @@ import { SettingsScreen } from './src/screens/SettingsScreen';
 export type RootStackParamList = {
   TopicList: undefined;
   LevelList: { topicId: string };
-  Play: { levelId: string; levelTitle: string };
+  Play: { levelId: string; levelTitle: string; topicId: string };
   Settings: undefined;
 };
 
