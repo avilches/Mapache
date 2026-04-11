@@ -219,8 +219,17 @@ export const PhraseCard = forwardRef<PhraseCardHandle, Props>(function PhraseCar
             <Text style={styles.listenText}>Listen</Text>
           </TouchableOpacity>
 
-          {/* Fila de calificación: Difícil / OK / Fácil */}
+          {/* Fila de calificación: Atrás / Difícil / Fácil / OK */}
           <View style={styles.rateRow}>
+            <TouchableOpacity
+              style={[styles.backSmallBtn, !canGoPrev && { opacity: 0.3 }]}
+              onPress={() => { if (canGoPrev) exitRight(onSwipeRight); }}
+              activeOpacity={0.7}
+              disabled={!canGoPrev}
+            >
+              <Ionicons name="arrow-back" size={16} color={theme.inactive} />
+            </TouchableOpacity>
+
             <TouchableOpacity
               style={[styles.rateBtn, { borderColor: theme.orange }]}
               onPress={() => exitDown(onSwipeDown)}
@@ -230,36 +239,20 @@ export const PhraseCard = forwardRef<PhraseCardHandle, Props>(function PhraseCar
             </TouchableOpacity>
 
             <TouchableOpacity
-              style={[styles.rateBtn, { borderColor: theme.primary }]}
-              onPress={() => exitLeft(onSwipeLeft)}
-              activeOpacity={0.7}
-            >
-              <Text style={[styles.rateText, { color: theme.primary }]}>← OK</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
               style={[styles.rateBtn, { borderColor: theme.success }]}
               onPress={() => exitUp(onSwipeUp)}
               activeOpacity={0.7}
             >
               <Text style={[styles.rateText, { color: theme.success }]}>↑ Fácil</Text>
             </TouchableOpacity>
-          </View>
 
-          {/* Fila de navegación: atrás */}
-          <View style={styles.navRow}>
-            {canGoPrev ? (
-              <TouchableOpacity
-                style={styles.backBtn}
-                onPress={() => exitRight(onSwipeRight)}
-                activeOpacity={0.7}
-              >
-                <Ionicons name="arrow-back" size={18} color={theme.inactive} />
-                <Text style={styles.backText}>Atrás</Text>
-              </TouchableOpacity>
-            ) : (
-              <View style={styles.backPlaceholder} />
-            )}
+            <TouchableOpacity
+              style={[styles.rateBtn, { borderColor: theme.primary }]}
+              onPress={() => exitLeft(onSwipeLeft)}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.rateText, { color: theme.primary }]}>OK</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Animated.View>
@@ -340,6 +333,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       gap: 8,
       width: '100%',
       marginTop: 4,
+      alignItems: 'center',
     },
     rateBtn: {
       flex: 1,
@@ -352,24 +346,14 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       fontSize: 13,
       fontWeight: '700',
     },
-    navRow: {
-      width: '100%',
+    backSmallBtn: {
+      width: 36,
+      height: 36,
       alignItems: 'center',
-      marginTop: 2,
-    },
-    backBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingVertical: 6,
-      paddingHorizontal: 14,
-    },
-    backText: {
-      fontSize: 12,
-      color: theme.inactive,
-    },
-    backPlaceholder: {
-      height: 30,
+      justifyContent: 'center',
+      borderWidth: 1.5,
+      borderColor: theme.inactive,
+      borderRadius: 40,
     },
   });
 }

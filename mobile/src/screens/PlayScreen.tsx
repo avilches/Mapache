@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useReducer } from 'react';
 import {
   View,
   Text,
@@ -12,21 +12,17 @@ import { useFocusEffect } from '@react-navigation/native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../theme';
 import { PhraseCard, PhraseCardHandle } from '../components/PhraseCard';
 import { useAudio } from '../hooks/useAudio';
 import {
-  ratePhraseInDb,
-  buildSessionQueue,
-  reinsertHard,
-  completeLevel,
-  resetLevelProgress,
   getLevelStats,
   getNextLevelId,
   LevelStats,
-  Phrase,
   PhraseRating,
 } from '../db/queries';
+import { createSession, SessionController } from '../db/session';
 import {
   getLevelsFromStore,
   getPhraseProgressFromStore,
@@ -47,11 +43,9 @@ export function PlayScreen({ route, navigation }: Props) {
   const markLevelSeen = useSettingsStore(s => s.markLevelSeen);
   const difficultyFilter = useSettingsStore(s => s.difficultyFilter);
 
-  // Cola mutable + cursor
-  const queueRef = useRef<Phrase[]>([]);
-  const reinsertCountRef = useRef<Map<string, number>>(new Map());
-  const [queueVersion, setQueueVersion] = useState(0); // bump cuando la cola cambia
-  const [cursor, setCursor] = useState(0);
+  // Controller de sesión (cola + cursor + reinsertCount + timer + listens)
+  const sessionRef = useRef<SessionController | null>(null);
+  const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   const [listenState, setListenState] = useState<ListenState>('idle');
   const [enterFrom, setEnterFrom] = useState<'right' | 'left'>('right');
@@ -59,22 +53,14 @@ export function PlayScreen({ route, navigation }: Props) {
   const [finishedStats, setFinishedStats] = useState<LevelStats | null>(null);
 
   const cardRef = useRef<PhraseCardHandle>(null);
-  const sessionListens = useRef(0);
-  const sessionActiveMs = useRef(0);
-  const segmentStart = useRef(0);
 
   const startSession = useCallback(() => {
-    queueRef.current = buildSessionQueue(levelId);
-    reinsertCountRef.current = new Map();
-    sessionListens.current = 0;
-    sessionActiveMs.current = 0;
-    segmentStart.current = Date.now();
-    setQueueVersion(v => v + 1);
-    setCursor(0);
+    sessionRef.current = createSession(levelId);
     setListenState('idle');
     setEnterFrom('right');
     setFinished(false);
     setFinishedStats(null);
+    forceUpdate();
   }, [levelId]);
 
   useFocusEffect(useCallback(() => {
@@ -87,9 +73,9 @@ export function PlayScreen({ route, navigation }: Props) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', state => {
       if (state === 'background' || state === 'inactive') {
-        sessionActiveMs.current += Date.now() - segmentStart.current;
+        sessionRef.current?.pause();
       } else if (state === 'active') {
-        segmentStart.current = Date.now();
+        sessionRef.current?.resume();
       }
     });
     return () => sub.remove();
@@ -108,34 +94,25 @@ export function PlayScreen({ route, navigation }: Props) {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
-  const queue = queueRef.current;
-  const currentPhrase = queue[cursor];
+  const session = sessionRef.current;
+  const currentPhrase = session?.current();
+  const cursor = session?.position() ?? 0;
+  const queueLength = session?.size() ?? 0;
 
-  function advance() {
-    const nextCursor = cursor + 1;
-    if (nextCursor >= queueRef.current.length) {
-      finishSession();
+  async function handleRate(rating: PhraseRating) {
+    const s = sessionRef.current;
+    if (!s || s.isFinished()) return;
+    await stopAudio();
+    await s.rate(rating);
+    if (s.isFinished()) {
+      const stats = await s.finish();
+      setFinishedStats(stats);
+      setFinished(true);
     } else {
       setEnterFrom('right');
       setListenState('idle');
-      setCursor(nextCursor);
+      forceUpdate();
     }
-  }
-
-  async function handleRate(rating: PhraseRating) {
-    if (!currentPhrase) return;
-    await stopAudio();
-    await ratePhraseInDb(currentPhrase.id, levelId, rating);
-    if (rating === 'hard') {
-      queueRef.current = reinsertHard(
-        queueRef.current,
-        cursor,
-        currentPhrase,
-        reinsertCountRef.current
-      );
-      setQueueVersion(v => v + 1);
-    }
-    advance();
   }
 
   async function handleEasy() { await handleRate('easy'); }
@@ -143,29 +120,25 @@ export function PlayScreen({ route, navigation }: Props) {
   async function handleHard() { await handleRate('hard'); }
 
   async function handlePrev() {
-    if (cursor <= 0) return;
+    const s = sessionRef.current;
+    if (!s || s.position() === 0) return;
     await stopAudio();
+    s.back();
     setEnterFrom('left');
     setListenState('idle');
-    setCursor(c => Math.max(0, c - 1));
-  }
-
-  async function finishSession() {
-    const totalActiveMs = sessionActiveMs.current + (Date.now() - segmentStart.current);
-    const sessionSecs = Math.round(totalActiveMs / 1000);
-    await completeLevel(levelId, sessionListens.current, sessionSecs);
-    setFinishedStats(getLevelStats(levelId));
-    setFinished(true);
+    forceUpdate();
   }
 
   async function handleListen() {
-    if (!currentPhrase) return;
+    const s = sessionRef.current;
+    const phrase = s?.current();
+    if (!s || !phrase) return;
     if (listenState === 'playing') return;
     if (listenState === 'idle') {
       setListenState('played');
     }
-    sessionListens.current += 1;
-    await playAudio(currentPhrase.audio_path);
+    s.listen();
+    await playAudio(phrase.audio_path);
   }
 
   function handleReveal() {
@@ -181,6 +154,24 @@ export function PlayScreen({ route, navigation }: Props) {
     ? [theme.bg, '#0a3040'] as const
     : [theme.bgAlt, theme.bg] as const;
 
+  function resetUiAfterRebuild() {
+    setListenState('idle');
+    setEnterFrom('right');
+    setFinished(false);
+    setFinishedStats(null);
+    forceUpdate();
+  }
+
+  function handleRepeat() {
+    sessionRef.current?.repeat();
+    resetUiAfterRebuild();
+  }
+
+  async function handleReset() {
+    await sessionRef.current?.resetAndRepeat();
+    resetUiAfterRebuild();
+  }
+
   if (finished && finishedStats) {
     return <FinishedView
       levelId={levelId}
@@ -188,7 +179,8 @@ export function PlayScreen({ route, navigation }: Props) {
       difficultyFilter={difficultyFilter}
       stats={finishedStats}
       navigation={navigation}
-      onRepeat={startSession}
+      onRepeat={handleRepeat}
+      onReset={handleReset}
       theme={theme}
     />;
   }
@@ -216,13 +208,13 @@ export function PlayScreen({ route, navigation }: Props) {
             <Text style={styles.exitText}>✕</Text>
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{levelTitle}</Text>
-          <Text style={styles.counter}>{cursor + 1}/{queue.length}</Text>
+          <Text style={styles.counter}>{cursor + 1}/{queueLength}</Text>
         </View>
 
         {/* Progress bar */}
         <View style={styles.progressBg}>
           <View style={[styles.progressFill, {
-            width: `${(cursor / Math.max(queue.length, 1)) * 100}%`
+            width: `${(cursor / Math.max(queueLength, 1)) * 100}%`
           }]} />
         </View>
 
@@ -230,7 +222,7 @@ export function PlayScreen({ route, navigation }: Props) {
         <View style={styles.cardContainer}>
           <PhraseCard
             ref={cardRef}
-            key={`${currentPhrase.id}-${cursor}-${queueVersion}`}
+            key={`${currentPhrase.id}-${cursor}-${queueLength}`}
             phrase={currentPhrase}
             listenState={listenState}
             onSwipeUp={handleEasy}
@@ -259,6 +251,7 @@ interface FinishedProps {
   stats: LevelStats;
   navigation: any;
   onRepeat: () => void;
+  onReset: () => void;
   theme: ReturnType<typeof useTheme>;
 }
 
@@ -269,7 +262,7 @@ function formatTime(totalSeconds: number): string {
   return s > 0 ? `${m}m ${s}s` : `${m}m`;
 }
 
-function FinishedView({ stats, navigation, onRepeat, theme, levelId, topicId, difficultyFilter }: FinishedProps) {
+function FinishedView({ stats, navigation, onRepeat, onReset, theme, levelId, topicId, difficultyFilter }: FinishedProps) {
   const styles = makeFinishedStyles(theme);
   const [nextLevelId, setNextLevelId] = useState<string | null>(null);
 
@@ -284,11 +277,6 @@ function FinishedView({ stats, navigation, onRepeat, theme, levelId, topicId, di
     ? getLevelsFromStore().find(l => l.id === nextLevelId)?.title ?? ''
     : '';
 
-  async function handleReset() {
-    await resetLevelProgress(levelId);
-    onRepeat();
-  }
-
   function handleNextLevel() {
     if (!nextLevelId) return;
     navigation.replace('Play', { levelId: nextLevelId, levelTitle: nextLevelTitle, topicId });
@@ -300,7 +288,7 @@ function FinishedView({ stats, navigation, onRepeat, theme, levelId, topicId, di
 
   return (
     <LinearGradient colors={gradientColors} style={styles.container}>
-      <Text style={styles.emoji}>🎉</Text>
+      <Ionicons name="trophy" size={72} color={theme.primary} />
       <Text style={styles.title}>¡Sesión completada!</Text>
 
       <View style={styles.statsBox}>
@@ -333,7 +321,7 @@ function FinishedView({ stats, navigation, onRepeat, theme, levelId, topicId, di
         <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={onRepeat}>
           <Text style={[styles.btnText, { color: theme.textSub }]}>Repetir nivel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={handleReset}>
+        <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={onReset}>
           <Text style={[styles.btnText, { color: theme.textSub }]}>Empezar de cero</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.btn, { backgroundColor: theme.bgPanel }]} onPress={() => navigation.goBack()}>
@@ -392,7 +380,6 @@ function makeFinishedStyles(theme: ReturnType<typeof useTheme>) {
       padding: 24,
       gap: 24,
     },
-    emoji: { fontSize: 72 },
     title: {
       fontSize: 30,
       fontWeight: '800',
