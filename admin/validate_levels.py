@@ -11,8 +11,6 @@ Uso:
 Exit code 0 = todo OK, 1 = hay errores.
 """
 
-import csv
-import io
 import json
 import os
 import re
@@ -36,7 +34,7 @@ TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 REQUIRED_META_FIELDS = {"id", "topicId", "title", "difficulty", "dateAdded"}
-VALID_DIFFICULTIES = {1, 2, 3}
+VALID_DIFFICULTIES = {1, 2, 3, 4, 5, 6}
 PACK_NAME_RE = re.compile(r"^[a-z0-9]+-(?:basic|interm|adv)-\d+$")
 BUNDLED_ZIPS_RE = re.compile(
     r"const BUNDLED_ZIPS[^{]*\{([^}]*)\}", re.DOTALL
@@ -44,21 +42,23 @@ BUNDLED_ZIPS_RE = re.compile(
 BUNDLED_ENTRY_RE = re.compile(r"'([^']+)'\s*:")
 
 
-def count_csv_phrases(txt: str) -> tuple[int, list[str]]:
-    """Cuenta frases válidas en phrases.txt (CSV spanish,english).
+def count_json_phrases(txt: str) -> tuple[int, list[str]]:
+    """Cuenta frases válidas en phrases.json (array de {es, en, grammar_focus?, tip?}).
     Devuelve (count, errores)."""
     errors = []
-    count = 0
-    reader = csv.reader(io.StringIO(txt))
-    for lineno, row in enumerate(reader, 1):
-        line = txt.splitlines()[lineno - 1].strip()
-        if not line:
-            continue  # ignorar líneas vacías
-        if len(row) < 2 or not row[0].strip() or not row[1].strip():
-            errors.append(f"línea {lineno} inválida: {line!r}")
-        else:
-            count += 1
-    return count, errors
+    try:
+        data = json.loads(txt)
+    except json.JSONDecodeError as e:
+        return 0, [f"JSON inválido: {e}"]
+    if not isinstance(data, list):
+        return 0, ["debe ser un array JSON"]
+    bad = [
+        i for i, p in enumerate(data)
+        if not isinstance(p, dict) or not p.get("es") or not p.get("en")
+    ]
+    for i in bad[:5]:
+        errors.append(f"entrada {i} inválida: falta 'es' o 'en'")
+    return len(data) - len(bad), errors
 
 
 def parse_bundled_zips(ts_source: str) -> list[str]:
@@ -162,19 +162,19 @@ def validate_admin_levels(valid_topic_ids: set[str] | None = None) -> tuple[list
             except json.JSONDecodeError as e:
                 errors.append(f"meta.json JSON inválido: {e}")
 
-        # phrases.txt
-        phrases_path = os.path.join(pack_path, "phrases.txt")
+        # phrases.json
+        phrases_path = os.path.join(pack_path, "phrases.json")
         phrase_count = 0
         if not os.path.isfile(phrases_path):
-            errors.append("falta phrases.txt")
+            errors.append("falta phrases.json")
         else:
             with open(phrases_path, encoding="utf-8") as f:
                 txt = f.read()
-            phrase_count, csv_errors = count_csv_phrases(txt)
-            for ce in csv_errors:
-                errors.append(f"phrases.txt: {ce}")
+            phrase_count, json_errors = count_json_phrases(txt)
+            for je in json_errors:
+                errors.append(f"phrases.json: {je}")
             if phrase_count == 0:
-                errors.append("phrases.txt no tiene frases válidas")
+                errors.append("phrases.json no tiene frases válidas")
         info["phrase_count"] = phrase_count
 
         # audio/ (opcional)
@@ -186,7 +186,7 @@ def validate_admin_levels(valid_topic_ids: set[str] | None = None) -> tuple[list
             info["mp3_count"] = mp3_count
             if phrase_count > 0 and mp3_count != phrase_count:
                 errors.append(
-                    f"audio/ tiene {mp3_count} mp3 pero phrases.txt tiene {phrase_count} frases"
+                    f"audio/ tiene {mp3_count} mp3 pero phrases.json tiene {phrase_count} frases"
                 )
 
         info["errors"] = errors

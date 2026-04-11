@@ -156,7 +156,7 @@ export function SettingsScreen({ navigation }: Props) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Formato del archivo</Text>
             <Text style={styles.code}>{JSON.stringify({
-              metadata: { id: "trav-adv-2", topicId: "travel", title: "Situaciones imprevistas 2", difficulty: 3, dateAdded: "2024-01-01" },
+              metadata: { id: "trav-adv-2", topicId: "travel", title: "Situaciones imprevistas 2", difficulty: 5, dateAdded: "2024-01-01" },
               phrases: [{ spanish: "Hola", english: "Hello" }],
               audio: { "001": "<base64 mp3>" }
             }, null, 2)}</Text>

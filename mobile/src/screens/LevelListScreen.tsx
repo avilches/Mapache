@@ -21,20 +21,31 @@ import type { RootStackParamList } from '../../App';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LevelList'>;
 
-const DIFFICULTY_LABELS: Record<number, string> = { 1: 'Básico', 2: 'Intermedio', 3: 'Avanzado' };
-const DIFFICULTY_STARS: Record<number, string> = { 1: '★', 2: '★★', 3: '★★★' };
+// Escala CEFR: 1=A1 principiante, 2=A2 elemental, 3=B1 intermedio,
+// 4=B2 intermedio alto, 5=C1 avanzado, 6=C2 maestría.
+const DIFFICULTY_CODES: Record<number, string> = {
+  1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2',
+};
+const DIFFICULTY_LABELS: Record<number, string> = {
+  1: 'Principiante',
+  2: 'Elemental',
+  3: 'Intermedio',
+  4: 'Intermedio alto',
+  5: 'Avanzado',
+  6: 'Maestría',
+};
 function difficultyColor(difficulty: number, theme: ReturnType<typeof useTheme>): string {
   if (difficulty === 1) return theme.green;
-  if (difficulty === 2) return theme.yellow;
-  if (difficulty === 3) return theme.orange;
+  if (difficulty === 2) return theme.blue;
+  if (difficulty === 3) return theme.yellow;
+  if (difficulty === 4) return theme.orange;
+  if (difficulty === 5) return theme.red;
+  if (difficulty === 6) return theme.magenta;
   return theme.primary;
 }
-const DIFFICULTY_OPTIONS: { value: 0 | 1 | 2 | 3; label: string; stars: string }[] = [
-  { value: 0, label: 'Todos', stars: '·' },
-  { value: 1, label: 'Básico', stars: '★' },
-  { value: 2, label: 'Intermedio', stars: '★★' },
-  { value: 3, label: 'Avanzado', stars: '★★★' },
-];
+type DifficultyValue = 0 | 1 | 2 | 3 | 4 | 5 | 6;
+type NonZeroDifficulty = Exclude<DifficultyValue, 0>;
+const DIFFICULTY_VALUES: NonZeroDifficulty[] = [1, 2, 3, 4, 5, 6];
 
 const NEW_LEVEL_DAYS = 30;
 
@@ -68,12 +79,25 @@ export function LevelListScreen({ route, navigation }: Props) {
     ? allLevels
     : allLevels.filter(l => l.difficulty === difficultyFilter);
 
-  const countByDifficulty: Record<0 | 1 | 2 | 3, number> = {
-    0: allLevels.length,
+  const countByDifficulty: Record<NonZeroDifficulty, number> = {
     1: allLevels.filter(l => l.difficulty === 1).length,
     2: allLevels.filter(l => l.difficulty === 2).length,
     3: allLevels.filter(l => l.difficulty === 3).length,
+    4: allLevels.filter(l => l.difficulty === 4).length,
+    5: allLevels.filter(l => l.difficulty === 5).length,
+    6: allLevels.filter(l => l.difficulty === 6).length,
   };
+
+  // Solo se muestran pills para dificultades con al menos 1 level en este topic.
+  const availableDifficulties = DIFFICULTY_VALUES.filter(d => countByDifficulty[d] > 0);
+
+  // Si el filtro actual apunta a una dificultad sin levels, lo limpiamos.
+  useEffect(() => {
+    if (loading) return;
+    if (difficultyFilter !== 0 && countByDifficulty[difficultyFilter as NonZeroDifficulty] === 0) {
+      setDifficultyFilter(0);
+    }
+  }, [loading, difficultyFilter, allLevels]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function renderLevel({ item }: { item: LevelWithProgress }) {
     const progress = item.total_phrases > 0
@@ -91,8 +115,8 @@ export function LevelListScreen({ route, navigation }: Props) {
       >
         <View style={styles.levelHeader}>
           <View style={[styles.diffBadge, { backgroundColor: diffColor + '22', borderColor: diffColor }]}>
-            <Text style={[styles.diffStars, { color: diffColor }]}>
-              {DIFFICULTY_STARS[item.difficulty]}
+            <Text style={[styles.diffCode, { color: diffColor }]}>
+              {DIFFICULTY_CODES[item.difficulty]}
             </Text>
             <Text style={[styles.diffLabel, { color: diffColor }]}>
               {DIFFICULTY_LABELS[item.difficulty]}
@@ -154,30 +178,33 @@ export function LevelListScreen({ route, navigation }: Props) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.filterRow}>
-        {DIFFICULTY_OPTIONS.map((opt) => {
-          const isActive = difficultyFilter === opt.value;
-          const accentColor = topicData?.color ?? theme.primary;
-          return (
-            <TouchableOpacity
-              key={opt.value}
-              style={[
-                styles.filterPill,
-                isActive && { borderColor: accentColor, backgroundColor: accentColor + '22' },
-              ]}
-              onPress={() => setDifficultyFilter(opt.value)}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.filterPillText, isActive && { color: accentColor }]}>
-                {opt.stars || '·'}
-              </Text>
-              <Text style={[styles.filterPillCount, isActive && { color: accentColor }]}>
-                {countByDifficulty[opt.value]}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      {availableDifficulties.length > 1 && (
+        <View style={styles.filterRow}>
+          {availableDifficulties.map((value) => {
+            const isActive = difficultyFilter === value;
+            const diffColor = difficultyColor(value, theme);
+            return (
+              <TouchableOpacity
+                key={value}
+                style={[
+                  styles.filterPill,
+                  isActive && { borderColor: diffColor, backgroundColor: diffColor + '22' },
+                ]}
+                // Toggle: al pulsar el filtro activo lo deseleccionamos (= todos).
+                onPress={() => setDifficultyFilter(isActive ? 0 : value)}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.filterPillText, isActive && { color: diffColor }]}>
+                  {DIFFICULTY_CODES[value]}
+                </Text>
+                <Text style={[styles.filterPillCount, isActive && { color: diffColor }]}>
+                  {countByDifficulty[value]}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
 
       <FlatList
         data={levels}
@@ -287,7 +314,7 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       paddingHorizontal: 10,
       paddingVertical: 3,
     },
-    diffStars: { fontSize: 11 },
+    diffCode: { fontSize: 11, fontWeight: '800', letterSpacing: 0.5 },
     diffLabel: { fontSize: 12, fontWeight: '600' },
     badgeRow: {
       flexDirection: 'row',

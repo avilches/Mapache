@@ -1,8 +1,0 @@
-"Hola","Hello"
-"Buenos días","Good morning"
-"Buenas tardes","Good afternoon"
-"Buenas noches","Good evening"
-"¿Cómo estás?","How are you?"
-"Muy bien, gracias","Very well, thank you"
-"Hasta luego","Goodbye"
-"Por favor","Please"

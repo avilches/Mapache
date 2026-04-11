@@ -48,7 +48,7 @@ export interface LevelWithProgress {
   id: string;
   topic_id: string;
   title: string;
-  difficulty: 1 | 2 | 3;
+  difficulty: 1 | 2 | 3 | 4 | 5 | 6;
   date_added: string;
   total_phrases: number;
   source: string;
@@ -80,7 +80,7 @@ export async function getTopics() {
 
 export async function getLevelsByTopic(
   topicId: string,
-  difficultyFilter: 0 | 1 | 2 | 3 = 0
+  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0
 ): Promise<LevelWithProgress[]> {
   const levelProgress = getLevelProgressFromStore();
   const phrases = getPhrasesFromStore();
@@ -108,7 +108,7 @@ export async function getLevelsByTopic(
 export async function getNextLevelId(
   currentLevelId: string,
   topicId: string,
-  difficultyFilter: 0 | 1 | 2 | 3 = 0
+  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0
 ): Promise<string | null> {
   const list = await getLevelsByTopic(topicId, difficultyFilter);
   const idx = list.findIndex(l => l.id === currentLevelId);

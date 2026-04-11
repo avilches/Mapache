@@ -12,7 +12,6 @@ Solo se incluyen levels que tengan audio generado (carpeta audio/ no vacía).
 
 Uso: python sync_mobile.py
 """
-import csv
 import json
 import os
 import sys
@@ -30,7 +29,7 @@ TOPICS_JSON_SRC = os.path.join(os.path.dirname(__file__), "topics.json")
 def load_level(level_id: str) -> dict | None:
     level_dir = os.path.join(LEVELS_DIR, level_id)
     meta_path = os.path.join(level_dir, "meta.json")
-    phrases_path = os.path.join(level_dir, "phrases.txt")
+    phrases_path = os.path.join(level_dir, "phrases.json")
     audio_dir = os.path.join(level_dir, "audio")
 
     if not os.path.exists(meta_path) or not os.path.exists(phrases_path):
@@ -44,12 +43,18 @@ def load_level(level_id: str) -> dict | None:
     with open(meta_path, "r", encoding="utf-8") as f:
         meta = json.load(f)
 
-    phrases = []
     with open(phrases_path, "r", encoding="utf-8") as f:
-        reader = csv.reader(f, skipinitialspace=True)
-        for row in reader:
-            if len(row) >= 2:
-                phrases.append({"spanish": row[0].strip(), "english": row[1].strip()})
+        raw = json.load(f)
+    phrases = [
+        {
+            "spanish": p["es"],
+            "english": p["en"],
+            "grammar_focus": p.get("grammar_focus", ""),
+            "tip": p.get("tip", ""),
+        }
+        for p in raw
+        if p.get("es") and p.get("en")
+    ]
 
     if len(phrases) != len(mp3s):
         print(f"  [warn] {level_id}: {len(phrases)} frases pero {len(mp3s)} MP3 — puede que falte regenerar audio")

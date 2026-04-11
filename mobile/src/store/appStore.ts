@@ -16,7 +16,7 @@ export interface Level {
   id: string;
   topic_id: string;
   title: string;
-  difficulty: 1 | 2 | 3;
+  difficulty: 1 | 2 | 3 | 4 | 5 | 6;
   date_added: string;
   total_phrases: number;
   source: string;
@@ -27,6 +27,8 @@ export interface Phrase {
   level_id: string;
   spanish: string;
   english: string;
+  grammar_focus?: string;
+  tip?: string;
   audio_path: string;
   sort_order: number;
 }
@@ -194,7 +196,7 @@ export async function scanInstalledLevels(): Promise<void> {
       const metaRaw = await FileSystem.readAsStringAsync(levelDir + 'meta.json');
       const phrasesRaw = await FileSystem.readAsStringAsync(levelDir + 'phrases.json');
       const meta = JSON.parse(metaRaw);
-      const phraseList: { spanish: string; english: string }[] = JSON.parse(phrasesRaw);
+      const phraseList: { spanish: string; english: string; grammar_focus?: string; tip?: string }[] = JSON.parse(phrasesRaw);
 
       levels.push({
         id: meta.id,
@@ -214,6 +216,8 @@ export async function scanInstalledLevels(): Promise<void> {
           level_id: levelId,
           spanish: p.spanish,
           english: p.english,
+          grammar_focus: p.grammar_focus || undefined,
+          tip: p.tip || undefined,
           audio_path: `${levelDir}audio/${padded}.mp3`,
           sort_order: sortOrder,
         });

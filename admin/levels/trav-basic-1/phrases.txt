@@ -1,8 +1,0 @@
-"¿Dónde está el aeropuerto?","Where is the airport?"
-"Un billete de ida y vuelta","A return ticket"
-"¿A qué hora sale el tren?","What time does the train leave?"
-"Tengo una reserva de hotel","I have a hotel reservation"
-"¿Cuánto cuesta el taxi?","How much does the taxi cost?"
-"He perdido mi pasaporte","I have lost my passport"
-"Necesito cambiar dinero","I need to exchange money"
-"¿Hay wifi en la habitación?","Is there wifi in the room?"

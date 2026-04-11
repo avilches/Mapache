@@ -247,7 +247,7 @@ export function PlayScreen({ route, navigation }: Props) {
 interface FinishedProps {
   levelId: string;
   topicId: string;
-  difficultyFilter: 0 | 1 | 2 | 3;
+  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   stats: LevelStats;
   navigation: any;
   onRepeat: () => void;

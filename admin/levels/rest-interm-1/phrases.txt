@@ -1,8 +1,0 @@
-"Tengo alergia al gluten","I have a gluten allergy"
-"¿Lleva cacahuetes este plato?","Does this dish contain peanuts?"
-"Quisiera algo vegetariano","I'd like something vegetarian"
-"El filete, poco hecho","The steak, rare"
-"¿Puedo cambiar la guarnición?","Can I change the side dish?"
-"Nos falta un cubierto","We're missing a piece of cutlery"
-"Pagamos por separado","We're paying separately"
-"¿Tienen terraza?","Do you have a terrace?"

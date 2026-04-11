@@ -1,8 +1,0 @@
-"Me gustaría hacer una escala en Londres","I'd like to make a stopover in London"
-"El retraso ha hecho que pierda la conexión","The delay caused me to miss my connection"
-"Reclamo una compensación por el retraso","I am claiming compensation for the delay"
-"¿Podría actualizarme a primera clase?","Could you upgrade me to first class?"
-"He declarado todos mis bienes en aduana","I have declared all my goods at customs"
-"El seguro de viaje cubre los gastos médicos","Travel insurance covers medical expenses"
-"Necesito una visa para entrar al país","I need a visa to enter the country"
-"La moneda local es el euro","The local currency is the euro"

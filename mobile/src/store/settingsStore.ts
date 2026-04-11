@@ -5,11 +5,11 @@ type ThemeMode = 'system' | 'light' | 'dark';
 
 interface SettingsStore {
   themeMode: ThemeMode;
-  difficultyFilter: 0 | 1 | 2 | 3;
+  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6;
   seenLevelIds: string[];
   lastTopicId: string | null;
   setThemeMode: (mode: ThemeMode) => void;
-  setDifficultyFilter: (difficulty: 0 | 1 | 2 | 3) => void;
+  setDifficultyFilter: (difficulty: 0 | 1 | 2 | 3 | 4 | 5 | 6) => void;
   markLevelSeen: (levelId: string) => void;
   setLastTopic: (id: string) => Promise<void>;
   loadSettings: () => Promise<void>;
@@ -53,7 +53,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     ]);
     const updates: Partial<SettingsStore> = {};
     if (savedTheme) updates.themeMode = savedTheme as ThemeMode;
-    if (savedFilter) updates.difficultyFilter = Number(savedFilter) as 0 | 1 | 2 | 3;
+    if (savedFilter) updates.difficultyFilter = Number(savedFilter) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
     if (savedSeen) updates.seenLevelIds = JSON.parse(savedSeen);
     if (savedTopic) updates.lastTopicId = savedTopic;
     set(updates);

@@ -63,15 +63,24 @@ def main():
     with open(os.path.join(level_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
 
-    with open(os.path.join(level_dir, "phrases.txt"), "w", encoding="utf-8") as f:
-        f.write("")
+    phrases_template = [
+        {
+            "es": "frase en español",
+            "en": "traducción al inglés",
+            "grammar_focus": "",
+            "tip": ""
+        }
+    ]
+    with open(os.path.join(level_dir, "phrases.json"), "w", encoding="utf-8") as f:
+        json.dump(phrases_template, f, ensure_ascii=False, indent=2)
 
     print(f"Level creado: levels/{level_id}/")
     print(f"  1. Edita meta.json:")
     print(f"       - topicId: uno de [{topic_hint}]")
-    print(f"       - difficulty: 1=básico, 2=intermedio, 3=avanzado")
+    print(f"       - difficulty: 1=A1 principiante, 2=A2 elemental, 3=B1 intermedio, 4=B2 intermedio alto, 5=C1 avanzado, 6=C2 maestría")
     print(f"       - title: título descriptivo del level (p.ej. 'En el aeropuerto')")
-    print(f"  2. Rellena phrases.txt con el formato: \"español\",\"english\"")
+    print(f"  2. Rellena phrases.json — formato:")
+    print(f'       [{{"es": "frase", "en": "phrase", "grammar_focus": "", "tip": ""}}]')
     print(f"  3. Genera el audio: python generate_audio.py {level_id}")
     print(f"  4. Sincroniza con la app: python sync_mobile.py")
 

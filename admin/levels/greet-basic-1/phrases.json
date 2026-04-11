@@ -1,0 +1,50 @@
+[
+  {
+    "es": "Hola",
+    "en": "Hello",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Buenos días",
+    "en": "Good morning",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Buenas tardes",
+    "en": "Good afternoon",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Buenas noches",
+    "en": "Good evening",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "¿Cómo estás?",
+    "en": "How are you?",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Muy bien, gracias",
+    "en": "Very well, thank you",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Hasta luego",
+    "en": "Goodbye",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Por favor",
+    "en": "Please",
+    "grammar_focus": "",
+    "tip": ""
+  }
+]

@@ -1,8 +1,0 @@
-"Una mesa para dos, por favor","A table for two, please"
-"La carta, por favor","The menu, please"
-"¿Qué recomienda?","What do you recommend?"
-"Quiero el menú del día","I'd like the set menu"
-"Agua sin gas, por favor","Still water, please"
-"La cuenta, por favor","The bill, please"
-"Estaba delicioso","It was delicious"
-"¿Está incluido el servicio?","Is service included?"

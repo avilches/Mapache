@@ -206,6 +206,18 @@ export const PhraseCard = forwardRef<PhraseCardHandle, Props>(function PhraseCar
               {phrase.english}
             </Animated.Text>
           )}
+
+          {/* grammar_focus y tip — visibles cuando hay contenido */}
+          {(phrase.grammar_focus || phrase.tip) && (
+            <View style={styles.metaBox}>
+              {phrase.grammar_focus ? (
+                <Text style={styles.grammarFocus}>{phrase.grammar_focus}</Text>
+              ) : null}
+              {phrase.tip ? (
+                <Text style={styles.tip}>{phrase.tip}</Text>
+              ) : null}
+            </View>
+          )}
         </View>
 
         {/* Controles inferiores */}
@@ -354,6 +366,26 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       borderWidth: 1.5,
       borderColor: theme.inactive,
       borderRadius: 40,
+    },
+    metaBox: {
+      width: '100%',
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: theme.cardBorder,
+      gap: 4,
+    },
+    grammarFocus: {
+      fontSize: 11,
+      color: theme.primary,
+      textAlign: 'center',
+      fontStyle: 'italic',
+    },
+    tip: {
+      fontSize: 11,
+      color: theme.textSub,
+      textAlign: 'center',
+      opacity: 0.8,
     },
   });
 }
