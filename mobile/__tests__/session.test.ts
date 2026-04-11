@@ -18,7 +18,7 @@ const META_TEST: Record<string, any> = {
   id: 'test-basic-1',
   topicId: 'test',
   title: 'Test Basic 1',
-  difficulty: 1,
+  difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -27,7 +27,7 @@ const META_INTERM: Record<string, any> = {
   id: 'test-interm-1',
   topicId: 'test',
   title: 'Test Interm 1',
-  difficulty: 2,
+  difficulty: 'A2',
   dateAdded: '2024-02-01',
   source: 'bundled',
 };
@@ -36,7 +36,7 @@ const META_ADV: Record<string, any> = {
   id: 'test-adv-1',
   topicId: 'test',
   title: 'Test Adv 1',
-  difficulty: 3,
+  difficulty: 'B1',
   dateAdded: '2024-03-01',
   source: 'bundled',
 };
@@ -293,21 +293,21 @@ describe('getNextLevelId', () => {
 
     const { getNextLevelId } = require('../src/db/queries');
     // Orden alfabético por id: adv-1, basic-1, interm-1
-    expect(await getNextLevelId('test-adv-1', 'test', 0)).toBe('test-basic-1');
-    expect(await getNextLevelId('test-basic-1', 'test', 0)).toBe('test-interm-1');
-    expect(await getNextLevelId('test-interm-1', 'test', 0)).toBe(null);
+    expect(await getNextLevelId('test-adv-1', 'test', '')).toBe('test-basic-1');
+    expect(await getNextLevelId('test-basic-1', 'test', '')).toBe('test-interm-1');
+    expect(await getNextLevelId('test-interm-1', 'test', '')).toBe(null);
   });
 
-  test('con difficultyFilter=1 solo navega entre básicos', async () => {
-    seedLevel(META_TEST, TWO_PHRASES);    // basic
-    seedLevel(META_INTERM, TWO_PHRASES);  // interm
+  test('con difficultyFilter=A1 solo navega entre A1', async () => {
+    seedLevel(META_TEST, TWO_PHRASES);    // A1
+    seedLevel(META_INTERM, TWO_PHRASES);  // A2
 
     const { scanInstalledLevels } = require('../src/store/appStore');
     await scanInstalledLevels();
 
     const { getNextLevelId } = require('../src/db/queries');
-    // Solo hay un básico → no hay siguiente
-    expect(await getNextLevelId('test-basic-1', 'test', 1)).toBe(null);
+    // Solo hay un A1 → no hay siguiente
+    expect(await getNextLevelId('test-basic-1', 'test', 'A1')).toBe(null);
   });
 
   test('devuelve null si el nivel actual no existe en la lista filtrada', async () => {
@@ -316,7 +316,7 @@ describe('getNextLevelId', () => {
     await scanInstalledLevels();
 
     const { getNextLevelId } = require('../src/db/queries');
-    expect(await getNextLevelId('nope', 'test', 0)).toBe(null);
+    expect(await getNextLevelId('nope', 'test', '')).toBe(null);
   });
 });
 

@@ -21,7 +21,7 @@ const MOCK_META = {
   id: 'test-basic-1',
   topicId: 'test',
   title: 'Test level',
-  difficulty: 1,
+  difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -162,7 +162,7 @@ describe('scanInstalledLevels', () => {
       id: 'test-basic-1',
       topic_id: 'test',
       title: 'Test level',
-      difficulty: 1,
+      difficulty: 'A1',
       total_phrases: 2,
     });
 

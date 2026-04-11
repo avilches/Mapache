@@ -11,7 +11,7 @@ const META_TEST: Record<string, any> = {
   id: 'test-basic-1',
   topicId: 'test',
   title: 'Test Basic 1',
-  difficulty: 1,
+  difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
 };

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Genera los MP3 de un level a partir de su phrases.txt.
+Genera los MP3 de un level a partir de su phrases.json.
 
 Uso:
     python generate_audio.py <level-id>   — genera audio de un level
@@ -9,7 +9,7 @@ Uso:
 Los MP3 se escriben en levels/<level-id>/audio/001.mp3, 002.mp3, ...
 Los archivos existentes se saltan (no se regeneran).
 """
-import csv
+import json
 import os
 import sys
 from gtts import gTTS
@@ -18,27 +18,29 @@ LEVELS_DIR = os.path.join(os.path.dirname(__file__), "levels")
 
 
 def load_english_phrases(phrases_path: str) -> list[str]:
-    phrases = []
     with open(phrases_path, "r", encoding="utf-8") as f:
-        reader = csv.reader(f, skipinitialspace=True)
-        for row in reader:
-            if len(row) >= 2:
-                phrases.append(row[1].strip())
-    return phrases
+        data = json.load(f)
+    if not isinstance(data, list):
+        return []
+    out = []
+    for p in data:
+        if isinstance(p, dict) and p.get("en"):
+            out.append(str(p["en"]).strip())
+    return out
 
 
 def generate_for_level(level_id: str) -> None:
     level_dir = os.path.join(LEVELS_DIR, level_id)
-    phrases_path = os.path.join(level_dir, "phrases.txt")
+    phrases_path = os.path.join(level_dir, "phrases.json")
     audio_dir = os.path.join(level_dir, "audio")
 
     if not os.path.exists(phrases_path):
-        print(f"  [error] {level_id}: no se encuentra phrases.txt")
+        print(f"  [error] {level_id}: no se encuentra phrases.json")
         return
 
     phrases = load_english_phrases(phrases_path)
     if not phrases:
-        print(f"  [skip]  {level_id}: phrases.txt vacío")
+        print(f"  [skip]  {level_id}: phrases.json vacío")
         return
 
     os.makedirs(audio_dir, exist_ok=True)

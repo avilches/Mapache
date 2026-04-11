@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../theme';
-import { getLevelsByTopic, LevelWithProgress, Topic } from '../db/queries';
+import { getLevelsByTopic, LevelWithProgress, Topic, CEFRLevel } from '../db/queries';
 import { getTopicsFromStore } from '../store/appStore';
 import { useSettingsStore } from '../store/settingsStore';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -21,31 +21,24 @@ import type { RootStackParamList } from '../../App';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'LevelList'>;
 
-// Escala CEFR: 1=A1 principiante, 2=A2 elemental, 3=B1 intermedio,
-// 4=B2 intermedio alto, 5=C1 avanzado, 6=C2 maestría.
-const DIFFICULTY_CODES: Record<number, string> = {
-  1: 'A1', 2: 'A2', 3: 'B1', 4: 'B2', 5: 'C1', 6: 'C2',
+const DIFFICULTY_LABELS: Record<CEFRLevel, string> = {
+  'A1': 'Principiante',
+  'A2': 'Elemental',
+  'B1': 'Intermedio',
+  'B2': 'Intermedio alto',
+  'C1': 'Avanzado',
+  'C2': 'Maestría',
 };
-const DIFFICULTY_LABELS: Record<number, string> = {
-  1: 'Principiante',
-  2: 'Elemental',
-  3: 'Intermedio',
-  4: 'Intermedio alto',
-  5: 'Avanzado',
-  6: 'Maestría',
-};
-function difficultyColor(difficulty: number, theme: ReturnType<typeof useTheme>): string {
-  if (difficulty === 1) return theme.green;
-  if (difficulty === 2) return theme.blue;
-  if (difficulty === 3) return theme.yellow;
-  if (difficulty === 4) return theme.orange;
-  if (difficulty === 5) return theme.red;
-  if (difficulty === 6) return theme.magenta;
+function difficultyColor(difficulty: CEFRLevel, theme: ReturnType<typeof useTheme>): string {
+  if (difficulty === 'A1') return theme.green;
+  if (difficulty === 'A2') return theme.blue;
+  if (difficulty === 'B1') return theme.yellow;
+  if (difficulty === 'B2') return theme.orange;
+  if (difficulty === 'C1') return theme.red;
+  if (difficulty === 'C2') return theme.magenta;
   return theme.primary;
 }
-type DifficultyValue = 0 | 1 | 2 | 3 | 4 | 5 | 6;
-type NonZeroDifficulty = Exclude<DifficultyValue, 0>;
-const DIFFICULTY_VALUES: NonZeroDifficulty[] = [1, 2, 3, 4, 5, 6];
+const DIFFICULTY_VALUES: CEFRLevel[] = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
 
 const NEW_LEVEL_DAYS = 30;
 
@@ -68,24 +61,24 @@ export function LevelListScreen({ route, navigation }: Props) {
 
   const loadLevels = useCallback(async () => {
     setLoading(true);
-    const data = await getLevelsByTopic(topicId, 0);
+    const data = await getLevelsByTopic(topicId, '');
     setAllLevels(data);
     setLoading(false);
   }, [topicId]);
 
   useFocusEffect(useCallback(() => { loadLevels(); }, [loadLevels]));
 
-  const levels = difficultyFilter === 0
+  const levels = difficultyFilter === ''
     ? allLevels
     : allLevels.filter(l => l.difficulty === difficultyFilter);
 
-  const countByDifficulty: Record<NonZeroDifficulty, number> = {
-    1: allLevels.filter(l => l.difficulty === 1).length,
-    2: allLevels.filter(l => l.difficulty === 2).length,
-    3: allLevels.filter(l => l.difficulty === 3).length,
-    4: allLevels.filter(l => l.difficulty === 4).length,
-    5: allLevels.filter(l => l.difficulty === 5).length,
-    6: allLevels.filter(l => l.difficulty === 6).length,
+  const countByDifficulty: Record<CEFRLevel, number> = {
+    'A1': allLevels.filter(l => l.difficulty === 'A1').length,
+    'A2': allLevels.filter(l => l.difficulty === 'A2').length,
+    'B1': allLevels.filter(l => l.difficulty === 'B1').length,
+    'B2': allLevels.filter(l => l.difficulty === 'B2').length,
+    'C1': allLevels.filter(l => l.difficulty === 'C1').length,
+    'C2': allLevels.filter(l => l.difficulty === 'C2').length,
   };
 
   // Solo se muestran pills para dificultades con al menos 1 level en este topic.
@@ -94,8 +87,8 @@ export function LevelListScreen({ route, navigation }: Props) {
   // Si el filtro actual apunta a una dificultad sin levels, lo limpiamos.
   useEffect(() => {
     if (loading) return;
-    if (difficultyFilter !== 0 && countByDifficulty[difficultyFilter as NonZeroDifficulty] === 0) {
-      setDifficultyFilter(0);
+    if (difficultyFilter !== '' && countByDifficulty[difficultyFilter] === 0) {
+      setDifficultyFilter('');
     }
   }, [loading, difficultyFilter, allLevels]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -116,7 +109,7 @@ export function LevelListScreen({ route, navigation }: Props) {
         <View style={styles.levelHeader}>
           <View style={[styles.diffBadge, { backgroundColor: diffColor + '22', borderColor: diffColor }]}>
             <Text style={[styles.diffCode, { color: diffColor }]}>
-              {DIFFICULTY_CODES[item.difficulty]}
+              {item.difficulty}
             </Text>
             <Text style={[styles.diffLabel, { color: diffColor }]}>
               {DIFFICULTY_LABELS[item.difficulty]}
@@ -191,11 +184,11 @@ export function LevelListScreen({ route, navigation }: Props) {
                   isActive && { borderColor: diffColor, backgroundColor: diffColor + '22' },
                 ]}
                 // Toggle: al pulsar el filtro activo lo deseleccionamos (= todos).
-                onPress={() => setDifficultyFilter(isActive ? 0 : value)}
+                onPress={() => setDifficultyFilter(isActive ? '' : value)}
                 activeOpacity={0.8}
               >
                 <Text style={[styles.filterPillText, isActive && { color: diffColor }]}>
-                  {DIFFICULTY_CODES[value]}
+                  {value}
                 </Text>
                 <Text style={[styles.filterPillCount, isActive && { color: diffColor }]}>
                   {countByDifficulty[value]}
@@ -216,7 +209,7 @@ export function LevelListScreen({ route, navigation }: Props) {
         ListEmptyComponent={
           !loading ? (
             <Text style={styles.emptyText}>
-              {difficultyFilter > 0
+              {difficultyFilter !== ''
                 ? `No hay niveles de dificultad ${DIFFICULTY_LABELS[difficultyFilter].toLowerCase()} en este tema.`
                 : 'No hay niveles disponibles.'}
             </Text>

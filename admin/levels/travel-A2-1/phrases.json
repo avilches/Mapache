@@ -1,0 +1,38 @@
+[
+  {
+    "es": "Tengo una reserva a nombre de García",
+    "en": "I have a reservation under García",
+    "grammar_focus": "",
+    "tip": "\"Under\" para indicar el nombre de la reserva"
+  },
+  {
+    "es": "¿A qué hora es el check-out?",
+    "en": "What time is check-out?",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "¿El desayuno está incluido?",
+    "en": "Is breakfast included?",
+    "grammar_focus": "voz pasiva simple",
+    "tip": ""
+  },
+  {
+    "es": "Quisiera una habitación con vistas al mar",
+    "en": "I'd like a room with a sea view",
+    "grammar_focus": "condicional I'd like para peticiones educadas",
+    "tip": ""
+  },
+  {
+    "es": "El aire acondicionado no funciona",
+    "en": "The air conditioning isn't working",
+    "grammar_focus": "presente continuo para problemas actuales",
+    "tip": ""
+  },
+  {
+    "es": "¿Hay aparcamiento en el hotel?",
+    "en": "Is there parking at the hotel?",
+    "grammar_focus": "",
+    "tip": ""
+  }
+]

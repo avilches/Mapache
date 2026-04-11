@@ -8,22 +8,21 @@ App iOS para entrenar frases en inglés mediante tarjetas. Muestra la frase en e
 
 ```
 admin/                       Scripts Python de gestión de contenido
-├── new_level.py             Crea el scaffold de un nuevo level
-├── generate_audio.py        Genera MP3 de un level desde phrases.txt
+├── new_level.py             Crea un level de forma interactiva (questionary + claude)
+├── generate_audio.py        Genera MP3 de un level desde phrases.json
 ├── sync_mobile.py           Empaqueta levels en ZIPs y actualiza BUNDLED_ZIPS
 ├── validate_levels.py       Valida integridad admin/levels vs mobile/assets/levels
 ├── practice.py              TUI de práctica en terminal (sin móvil)
-├── requirements.txt         gtts, textual, rich
+├── requirements.txt         gtts, textual, rich, questionary
 ├── topics.json              Catálogo de topics (id, name, icon, color)
 └── levels/                  Fuente de verdad de todo el contenido
-    ├── greet-basic-1/       Un level = una carpeta
-    │   ├── meta.json        Metadatos del level (incluye topicId)
-    │   ├── phrases.txt      Frases CSV: "español","english"
+    ├── greetings-A1-1/      Un level = una carpeta
+    │   ├── meta.json        Metadatos del level (incluye topicId + CEFR)
+    │   ├── phrases.json     Array JSON [{es, en, grammar_focus, tip}]
     │   └── audio/           MP3 generados: 001.mp3, 002.mp3...
-    ├── greet-interm-1/ greet-adv-1/
-    ├── rest-basic-1/ rest-interm-1/ rest-adv-1/
-    ├── trav-basic-1/ trav-interm-1/ trav-adv-1/
-    └── daily-interm-1/ daily-interm-2/ daily-interm-3/
+    ├── greetings-B1-1/
+    ├── travel-A1-1/ travel-A2-1/ travel-B2-1/
+    └── ...
 
 mobile/                      App React Native + Expo
 ├── App.tsx                  Stack Navigator + boot sequence
@@ -45,20 +44,20 @@ mobile/                      App React Native + Expo
 
 ### Convención de nombres de levels
 
-El ID de un level sigue el formato: `<topic>-<dificultad>-<número>`
+El ID de un level sigue el formato: `<topicId>-<CEFR>-<número>`
 
-- **`<topic>`**: prefijo corto del topic (`greet`, `rest`, `trav`, `daily`...)
-- **`<dificultad>`**: `basic` | `interm` | `adv` (1, 2, 3 respectivamente)
+- **`<topicId>`**: id exacto del topic en `admin/topics.json` (ej. `greetings`, `travel`, `restaurant`, `daily`). Puede contener guiones.
+- **`<CEFR>`**: código CEFR exacto: `A1` | `A2` | `B1` | `B2` | `C1` | `C2`. Coincide con el campo `difficulty` de `meta.json`.
 - **`<número>`**: orden dentro de la serie del mismo topic y dificultad (1, 2, 3...)
 
 ```
-greet-basic-1   → saludos, básico, level nº1
-greet-basic-2   → saludos, básico, level nº2  (continuación de la serie)
-greet-interm-1  → saludos, intermedio, level nº1
-trav-adv-2      → viajes, avanzado, level nº2
+greetings-A1-1   → saludos, A1, level nº1
+greetings-A1-2   → saludos, A1, level nº2  (continuación de la serie)
+greetings-B1-1   → saludos, B1, level nº1
+travel-B2-2      → viajes, B2, level nº2
 ```
 
-El sufijo numérico es **orden de secuencia**, no dificultad. La dificultad va en el nombre y en el campo `difficulty` de `meta.json`. La ordenación en la app es alfabética por ID (`localeCompare`), por lo que `greet-adv-1 < greet-basic-1 < greet-interm-1` — no hay `sort_order` explícito.
+El sufijo numérico es **orden de secuencia**. La dificultad va en el nombre y en el campo `difficulty` de `meta.json`. La ordenación en la app es alfabética por ID (`localeCompare`), por lo que `greetings-A1-1 < greetings-A2-1 < greetings-B1-1` — no hay `sort_order` explícito.
 
 ### Flujo completo para añadir un level nuevo
 
@@ -66,21 +65,25 @@ El sufijo numérico es **orden de secuencia**, no dificultad. La dificultad va e
 cd admin
 source .venv/bin/activate    # o: python3 -m venv .venv && pip install -r requirements.txt
 
-# 1. Crear scaffold
-python new_level.py greet-basic-2
+# 1. Crear el level de forma interactiva.
+#    new_level.py pide topic (o crea uno nuevo llamando a `claude`), CEFR,
+#    título, y genera N frases vía `claude -p` con el prompt parametrizado.
+#    Escribe meta.json + phrases.json listos para usar.
+python new_level.py
 
-# 2. Editar admin/levels/greet-basic-2/meta.json y rellenar phrases.txt
+# 2. Generar audio
+python generate_audio.py greetings-A1-2
 
-# 3. Generar audio
-python generate_audio.py greet-basic-2
-
-# 4. Sincronizar con la app (empaqueta ZIPs en mobile/assets/levels/
+# 3. Sincronizar con la app (empaqueta ZIPs en mobile/assets/levels/
 #    + actualiza BUNDLED_ZIPS en src/store/appStore.ts)
 python sync_mobile.py
+#    --no-audio para empacar sin requerir MP3 (desarrollo)
 
-# 5. Reiniciar la app — los nuevos ZIPs se extraen automáticamente.
+# 4. Reiniciar la app — los nuevos ZIPs se extraen automáticamente.
 #    No hace falta reinstalar: el progreso del usuario se conserva.
 ```
+
+`new_level.py` requiere el binario `claude` (Claude Code CLI) en PATH — lo usa para sugerir icon/color al crear topics y para generar las frases con un prompt que respeta el nivel CEFR y el tema del level.
 
 Los levels nuevos aparecen con badge **¡Nuevo!** en la app durante los 30 días siguientes a su `dateAdded` (si el usuario no los ha abierto todavía).
 
@@ -103,27 +106,43 @@ Los topics se definen una sola vez en `admin/topics.json` como un array:
 
 ```json
 {
-  "id": "greet-basic-2",
+  "id": "greetings-A1-2",
   "topicId": "greetings",
   "title": "Saludos en el trabajo",
-  "difficulty": 1,
+  "difficulty": "A1",
   "dateAdded": "2026-04-04"
 }
 ```
 
 - `id`: debe coincidir con el nombre del directorio.
 - `topicId`: referencia a una entrada de `admin/topics.json`.
-- `difficulty`: `1` básico, `2` intermedio, `3` avanzado.
+- `difficulty`: código CEFR — `A1` | `A2` | `B1` | `B2` | `C1` | `C2`.
 - `dateAdded`: fecha ISO `YYYY-MM-DD`. Controla el badge "¡Nuevo!" (30 días).
 
-### Formato de phrases.txt
+### Formato de phrases.json
 
-CSV sin cabecera, una frase por línea:
+Array JSON con una entrada por frase:
 
+```json
+[
+  {
+    "es": "Hola",
+    "en": "Hello",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Ha estado lloviendo toda la mañana",
+    "en": "It has been raining all morning",
+    "grammar_focus": "presente perfecto continuo",
+    "tip": "En inglés 'has been raining', no 'has rained'"
+  }
+]
 ```
-"Hola","Hello"
-"Buenos días","Good morning"
-```
+
+- `es` / `en`: obligatorios.
+- `grammar_focus` / `tip`: opcionales (cadena vacía = no se muestra nada en la ficha).
+- `sync_mobile.py` convierte cada entrada a `{ spanish, english, grammar_focus, tip }` al escribirla dentro del ZIP — es lo que consume la app. No edites los ZIPs a mano.
 
 ### sync_mobile.py — qué genera
 
@@ -141,7 +160,7 @@ Verifica la integridad del contenido: que cada level en `admin/levels/` tenga un
 ### practice.py — herramienta de escritorio
 
 ```bash
-python practice.py levels/daily-interm-1/phrases.txt
+python practice.py levels/greetings-A1-1/phrases.json
 ```
 
 TUI en el terminal para practicar frases. Precede al móvil. El audio se genera y cachea en `admin/audio_cache/`.

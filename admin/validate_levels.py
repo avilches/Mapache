@@ -34,8 +34,8 @@ TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
 REQUIRED_META_FIELDS = {"id", "topicId", "title", "difficulty", "dateAdded"}
-VALID_DIFFICULTIES = {1, 2, 3, 4, 5, 6}
-PACK_NAME_RE = re.compile(r"^[a-z0-9]+-(?:basic|interm|adv)-\d+$")
+VALID_DIFFICULTIES = {'A1', 'A2', 'B1', 'B2', 'C1', 'C2'}
+PACK_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*-(?:A1|A2|B1|B2|C1|C2)-\d+$")
 BUNDLED_ZIPS_RE = re.compile(
     r"const BUNDLED_ZIPS[^{]*\{([^}]*)\}", re.DOTALL
 )
@@ -130,7 +130,7 @@ def validate_admin_levels(valid_topic_ids: set[str] | None = None) -> tuple[list
         # Convención de nombre
         if not PACK_NAME_RE.match(pack_id):
             errors.append(
-                f"nombre no sigue la convención <tema>-<basic|interm|adv>-<número>"
+                "nombre no sigue la convención <topicId>-<A1|A2|B1|B2|C1|C2>-<número>"
             )
 
         # meta.json
@@ -284,9 +284,11 @@ def validate_zips(admin_packs: list[dict]) -> tuple[list[dict], list[str]]:
                 ]
                 mp3_count = len(mp3s)
                 info["mp3_count"] = mp3_count
-                if not mp3s:
+                admin_pack = next((p for p in admin_packs if p["id"] == pack_id), None)
+                admin_has_audio = admin_pack["has_audio"] if admin_pack else True
+                if not mp3s and admin_has_audio:
                     errors.append("no hay archivos .mp3 en audio/")
-                elif phrase_count > 0 and mp3_count != phrase_count:
+                elif phrase_count > 0 and mp3_count > 0 and mp3_count != phrase_count:
                     errors.append(
                         f"{phrase_count} frases pero {mp3_count} mp3 → DESINCRONIZADO"
                     )

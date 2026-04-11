@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """
 Herramienta TUI de práctica de frases en el terminal.
-Uso: python practice.py [archivo.txt]
+Uso: python practice.py [archivo.json]
+
+Lee el formato phrases.json de admin/levels/*/ (array de
+{es, en, grammar_focus, tip}). No guarda estado ni progreso — solo pinta
+frases para practicar.
+
 Requiere: pip install -r requirements.txt
 """
 import asyncio
-import csv
 import hashlib
+import json
 import os
 import subprocess
 import threading
@@ -26,7 +31,7 @@ from textual.widgets import Footer, Static
 COUNTDOWN_SECONDS = 5.0
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_cache")
 PANEL_WIDTH = 120
-PANEL_HEIGHT = 12
+PANEL_HEIGHT = 16
 CONTENT_WIDTH = PANEL_WIDTH - 14  # panel border (2) + padding (10) + margin (2)
 BAR_WIDTH = CONTENT_WIDTH
 
@@ -35,6 +40,8 @@ BAR_WIDTH = CONTENT_WIDTH
 class Phrase:
     espanol: str
     ingles: str
+    grammar_focus: str = ""
+    tip: str = ""
 
 
 class PhraseState(Enum):
@@ -54,12 +61,22 @@ def get_audio_path(text: str) -> str:
 
 
 def load_phrases(file_path: str) -> list[Phrase]:
-    phrases: list[Phrase] = []
     with open(file_path, "r", encoding="utf-8") as file:
-        reader = csv.reader(file, skipinitialspace=True)
-        for row in reader:
-            if len(row) >= 2:
-                phrases.append(Phrase(row[0].strip(), row[1].strip()))
+        data = json.load(file)
+    if not isinstance(data, list):
+        return []
+    phrases: list[Phrase] = []
+    for item in data:
+        if not isinstance(item, dict) or not item.get("es") or not item.get("en"):
+            continue
+        phrases.append(
+            Phrase(
+                espanol=str(item["es"]).strip(),
+                ingles=str(item["en"]).strip(),
+                grammar_focus=str(item.get("grammar_focus", "")).strip(),
+                tip=str(item.get("tip", "")).strip(),
+            )
+        )
     return phrases
 
 
@@ -202,6 +219,17 @@ class LearningApp(App[None]):
         else:
             content.append("\n🇺🇸  ....\n", style="dim")
 
+        # grammar_focus y tip — solo cuando ya se ha revelado el inglés,
+        # para no dar pistas antes de tiempo.
+        if show_ingles and phrase.grammar_focus:
+            content.append(f"\n▸ {phrase.grammar_focus}\n", style="italic cyan")
+        else:
+            content.append("\n\n")
+        if show_ingles and phrase.tip:
+            content.append(f"💡 {phrase.tip}\n", style="yellow")
+        else:
+            content.append("\n")
+
         if self.show_timer_bar and self.state in (PhraseState.INTRO_WAIT, PhraseState.AUDIO_WITH_BAR):
             progress = max(0.0, min(1.0, self.timer_val / COUNTDOWN_SECONDS))
             filled = int(progress * BAR_WIDTH)
@@ -336,5 +364,5 @@ def start_learning(file_path: str) -> None:
 
 if __name__ == "__main__":
     import sys
-    file_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "packs", "daily-life-1", "phrases.txt")
+    file_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "levels", "greetings-A1-1", "phrases.json")
     start_learning(file_path)

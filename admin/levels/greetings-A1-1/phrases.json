@@ -1,0 +1,44 @@
+[
+  {
+    "es": "Buenos días",
+    "en": "Good morning",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Buenas tardes",
+    "en": "Good afternoon",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Buenas noches",
+    "en": "Good evening / Good night",
+    "grammar_focus": "",
+    "tip": "\"Good evening\" al llegar, \"good night\" al despedirse"
+  },
+  {
+    "es": "¿Cómo estás?",
+    "en": "How are you?",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Muy bien, gracias",
+    "en": "Very well, thank you",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Encantado de conocerte",
+    "en": "Nice to meet you",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "Hasta luego",
+    "en": "See you later",
+    "grammar_focus": "",
+    "tip": ""
+  }
+]

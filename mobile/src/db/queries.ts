@@ -11,6 +11,7 @@ import {
   PhraseRating,
   PhraseProg,
   Phrase,
+  CEFRLevel,
 } from '../store/appStore';
 
 // ─── Constantes del sistema de rating ────────────────────────────────────────
@@ -33,7 +34,7 @@ export interface LevelStats {
   totalTimeSeconds: number;
 }
 
-export type { Topic, Level, Phrase, PhraseRating } from '../store/appStore';
+export type { Topic, Level, Phrase, PhraseRating, CEFRLevel } from '../store/appStore';
 
 export interface PhraseProgress {
   phrase_id: string;
@@ -48,7 +49,7 @@ export interface LevelWithProgress {
   id: string;
   topic_id: string;
   title: string;
-  difficulty: 1 | 2 | 3 | 4 | 5 | 6;
+  difficulty: CEFRLevel;
   date_added: string;
   total_phrases: number;
   source: string;
@@ -80,13 +81,13 @@ export async function getTopics() {
 
 export async function getLevelsByTopic(
   topicId: string,
-  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0
+  difficultyFilter: '' | CEFRLevel = ''
 ): Promise<LevelWithProgress[]> {
   const levelProgress = getLevelProgressFromStore();
   const phrases = getPhrasesFromStore();
 
   let filtered = getLevelsFromStore().filter(l => l.topic_id === topicId);
-  if (difficultyFilter > 0) filtered = filtered.filter(l => l.difficulty === difficultyFilter);
+  if (difficultyFilter !== '') filtered = filtered.filter(l => l.difficulty === difficultyFilter);
   filtered = [...filtered].sort((a, b) => a.id.localeCompare(b.id));
 
   return filtered.map(level => {
@@ -108,7 +109,7 @@ export async function getLevelsByTopic(
 export async function getNextLevelId(
   currentLevelId: string,
   topicId: string,
-  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6 = 0
+  difficultyFilter: '' | CEFRLevel = ''
 ): Promise<string | null> {
   const list = await getLevelsByTopic(topicId, difficultyFilter);
   const idx = list.findIndex(l => l.id === currentLevelId);

@@ -11,6 +11,9 @@ Qué hace:
 Solo se incluyen levels que tengan audio generado (carpeta audio/ no vacía).
 
 Uso: python sync_mobile.py
+Flags:
+  --no-audio  Incluye levels sin audio (útil en desarrollo). Las frases se
+              empacan sin MP3; el audio se puede añadir después.
 """
 import json
 import os
@@ -26,7 +29,7 @@ TOPICS_JSON_SRC = os.path.join(os.path.dirname(__file__), "topics.json")
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
-def load_level(level_id: str) -> dict | None:
+def load_level(level_id: str, no_audio: bool = False) -> dict | None:
     level_dir = os.path.join(LEVELS_DIR, level_id)
     meta_path = os.path.join(level_dir, "meta.json")
     phrases_path = os.path.join(level_dir, "phrases.json")
@@ -36,9 +39,11 @@ def load_level(level_id: str) -> dict | None:
         return None
 
     mp3s = sorted(f for f in os.listdir(audio_dir) if f.endswith(".mp3")) if os.path.isdir(audio_dir) else []
-    if not mp3s:
+    if not mp3s and not no_audio:
         print(f"  [skip] {level_id}: sin audio — ejecuta generate_audio.py {level_id} primero")
         return None
+    if not mp3s and no_audio:
+        print(f"  [warn] {level_id}: sin audio (--no-audio activo)")
 
     with open(meta_path, "r", encoding="utf-8") as f:
         meta = json.load(f)
@@ -62,11 +67,11 @@ def load_level(level_id: str) -> dict | None:
     return {"meta": meta, "phrases": phrases, "mp3s": mp3s}
 
 
-def load_all_levels() -> list[dict]:
+def load_all_levels(no_audio: bool = False) -> list[dict]:
     level_ids = sorted(d for d in os.listdir(LEVELS_DIR) if os.path.isdir(os.path.join(LEVELS_DIR, d)))
     levels = []
     for level_id in level_ids:
-        level = load_level(level_id)
+        level = load_level(level_id, no_audio=no_audio)
         if level:
             levels.append(level)
     return levels
@@ -86,16 +91,16 @@ def create_level_zip(level: dict, topics_by_id: dict) -> None:
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         # meta.json
         zf.write(os.path.join(level_dir, "meta.json"), f"{level_id}/meta.json")
-        # phrases.json (converted from phrases.txt)
         zf.writestr(f"{level_id}/phrases.json", phrases_json.encode("utf-8"))
         # topic.json (para que el level sea auto-suficiente si se descarga)
         if topic_data:
             zf.writestr(f"{level_id}/topic.json", json.dumps(topic_data, ensure_ascii=False))
-        # audio files
+        # audio files (may be empty in --no-audio mode)
         for mp3 in level["mp3s"]:
             zf.write(os.path.join(level_dir, "audio", mp3), f"{level_id}/audio/{mp3}")
 
-    print(f"  [zip] {level_id}: {len(level['phrases'])} frases, {len(level['mp3s'])} mp3 → {zip_path}")
+    audio_info = f"{len(level['mp3s'])} mp3" if level["mp3s"] else "sin audio"
+    print(f"  [zip] {level_id}: {len(level['phrases'])} frases, {audio_info} → {zip_path}")
 
 
 # ── step 2: update BUNDLED_ZIPS in appStore.ts ───────────────────────────────
@@ -135,10 +140,11 @@ def update_app_store_ts(levels: list[dict]) -> None:
 # ── main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    no_audio = '--no-audio' in sys.argv
     print("Leyendo levels...")
-    levels = load_all_levels()
+    levels = load_all_levels(no_audio=no_audio)
     if not levels:
-        print("No hay levels con audio. Ejecuta generate_audio.py primero.")
+        print("No hay levels listos. Ejecuta generate_audio.py primero (o usa --no-audio para desarrollo).")
         sys.exit(1)
     print(f"  {len(levels)} levels listos: {[l['meta']['id'] for l in levels]}")
 

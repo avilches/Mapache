@@ -1,15 +1,26 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { CEFRLevel } from './appStore';
 
 type ThemeMode = 'system' | 'light' | 'dark';
 
+const LEGACY_FILTER_MAP: Record<string, '' | CEFRLevel> = {
+  '0': '', '1': 'A1', '2': 'A2', '3': 'B1', '4': 'B2', '5': 'C1', '6': 'C2',
+};
+
+function migrateDifficultyFilter(stored: string): '' | CEFRLevel {
+  if (stored in LEGACY_FILTER_MAP) return LEGACY_FILTER_MAP[stored];
+  const valid: ('' | CEFRLevel)[] = ['', 'A1', 'A2', 'B1', 'B2', 'C1', 'C2'];
+  return valid.includes(stored as any) ? (stored as '' | CEFRLevel) : '';
+}
+
 interface SettingsStore {
   themeMode: ThemeMode;
-  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  difficultyFilter: '' | CEFRLevel;
   seenLevelIds: string[];
   lastTopicId: string | null;
   setThemeMode: (mode: ThemeMode) => void;
-  setDifficultyFilter: (difficulty: 0 | 1 | 2 | 3 | 4 | 5 | 6) => void;
+  setDifficultyFilter: (difficulty: '' | CEFRLevel) => void;
   markLevelSeen: (levelId: string) => void;
   setLastTopic: (id: string) => Promise<void>;
   loadSettings: () => Promise<void>;
@@ -17,7 +28,7 @@ interface SettingsStore {
 
 export const useSettingsStore = create<SettingsStore>((set, get) => ({
   themeMode: 'system',
-  difficultyFilter: 0,
+  difficultyFilter: '',
   seenLevelIds: [],
   lastTopicId: null,
 
@@ -28,7 +39,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
 
   setDifficultyFilter: async (difficulty) => {
     set({ difficultyFilter: difficulty });
-    await AsyncStorage.setItem('difficultyFilter', String(difficulty));
+    await AsyncStorage.setItem('difficultyFilter', difficulty);
   },
 
   markLevelSeen: async (levelId) => {
@@ -53,7 +64,7 @@ export const useSettingsStore = create<SettingsStore>((set, get) => ({
     ]);
     const updates: Partial<SettingsStore> = {};
     if (savedTheme) updates.themeMode = savedTheme as ThemeMode;
-    if (savedFilter) updates.difficultyFilter = Number(savedFilter) as 0 | 1 | 2 | 3 | 4 | 5 | 6;
+    if (savedFilter !== null) updates.difficultyFilter = migrateDifficultyFilter(savedFilter);
     if (savedSeen) updates.seenLevelIds = JSON.parse(savedSeen);
     if (savedTopic) updates.lastTopicId = savedTopic;
     set(updates);

@@ -21,6 +21,7 @@ import {
   getNextLevelId,
   LevelStats,
   PhraseRating,
+  CEFRLevel,
 } from '../db/queries';
 import { createSession, SessionController } from '../db/session';
 import {
@@ -247,7 +248,7 @@ export function PlayScreen({ route, navigation }: Props) {
 interface FinishedProps {
   levelId: string;
   topicId: string;
-  difficultyFilter: 0 | 1 | 2 | 3 | 4 | 5 | 6;
+  difficultyFilter: '' | CEFRLevel;
   stats: LevelStats;
   navigation: any;
   onRepeat: () => void;

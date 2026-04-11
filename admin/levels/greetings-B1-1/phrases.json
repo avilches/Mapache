@@ -1,0 +1,38 @@
+[
+  {
+    "es": "Hace tiempo que no te veo",
+    "en": "Long time no see",
+    "grammar_focus": "",
+    "tip": "Expresión fija, no traducir literalmente"
+  },
+  {
+    "es": "¿Qué tal te va todo?",
+    "en": "How's everything going?",
+    "grammar_focus": "presente continuo",
+    "tip": ""
+  },
+  {
+    "es": "Me alegro de verte",
+    "en": "It's good to see you",
+    "grammar_focus": "",
+    "tip": ""
+  },
+  {
+    "es": "¿A qué te dedicas?",
+    "en": "What do you do for a living?",
+    "grammar_focus": "presente simple para hábitos",
+    "tip": "\"For a living\" especifica que se pregunta por el trabajo"
+  },
+  {
+    "es": "Trabajo como ingeniero",
+    "en": "I work as an engineer",
+    "grammar_focus": "",
+    "tip": "Usar \"as\" (como función), no \"like\" (parecido a)"
+  },
+  {
+    "es": "Tenemos que quedar algún día",
+    "en": "We should catch up sometime",
+    "grammar_focus": "modal should para sugerencia",
+    "tip": "\"Catch up\" = ponerse al día, no se traduce literalmente"
+  }
+]

@@ -13,7 +13,7 @@ const MOCK_META_TEST: Record<string, any> = {
   id: 'test-basic-1',
   topicId: 'test',
   title: 'Test Basic 1',
-  difficulty: 1,
+  difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -22,7 +22,7 @@ const MOCK_META_INTERM: Record<string, any> = {
   id: 'test-interm-1',
   topicId: 'test',
   title: 'Test Interm 1',
-  difficulty: 2,
+  difficulty: 'A2',
   dateAdded: '2024-02-01',
   source: 'bundled',
 };
@@ -31,7 +31,7 @@ const MOCK_META_OTHER_TOPIC: Record<string, any> = {
   id: 'other-basic-1',
   topicId: 'other',
   title: 'Other Basic 1',
-  difficulty: 1,
+  difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
 };
@@ -95,22 +95,22 @@ describe('getLevelsByTopic', () => {
     expect(levels).toHaveLength(0);
   });
 
-  test('difficultyFilter=1 returns only basic levels', async () => {
-    seedLevel(MOCK_META_TEST, TWO_PHRASES);   // difficulty 1
-    seedLevel(MOCK_META_INTERM, TWO_PHRASES); // difficulty 2
+  test('difficultyFilter=A1 returns only A1 levels', async () => {
+    seedLevel(MOCK_META_TEST, TWO_PHRASES);   // difficulty A1
+    seedLevel(MOCK_META_INTERM, TWO_PHRASES); // difficulty A2
 
     const { scanInstalledLevels } = require('../src/store/appStore');
     await scanInstalledLevels();
 
     const { getLevelsByTopic } = require('../src/db/queries');
-    const levels = await getLevelsByTopic('test', 1);
+    const levels = await getLevelsByTopic('test', 'A1');
 
     expect(levels).toHaveLength(1);
-    expect(levels[0].difficulty).toBe(1);
+    expect(levels[0].difficulty).toBe('A1');
     expect(levels[0].id).toBe('test-basic-1');
   });
 
-  test('difficultyFilter=2 returns only intermediate levels', async () => {
+  test('difficultyFilter=A2 returns only A2 levels', async () => {
     seedLevel(MOCK_META_TEST, TWO_PHRASES);
     seedLevel(MOCK_META_INTERM, TWO_PHRASES);
 
@@ -118,13 +118,13 @@ describe('getLevelsByTopic', () => {
     await scanInstalledLevels();
 
     const { getLevelsByTopic } = require('../src/db/queries');
-    const levels = await getLevelsByTopic('test', 2);
+    const levels = await getLevelsByTopic('test', 'A2');
 
     expect(levels).toHaveLength(1);
-    expect(levels[0].difficulty).toBe(2);
+    expect(levels[0].difficulty).toBe('A2');
   });
 
-  test('difficultyFilter=0 returns all levels', async () => {
+  test('difficultyFilter="" returns all levels', async () => {
     seedLevel(MOCK_META_TEST, TWO_PHRASES);
     seedLevel(MOCK_META_INTERM, TWO_PHRASES);
 
@@ -132,7 +132,7 @@ describe('getLevelsByTopic', () => {
     await scanInstalledLevels();
 
     const { getLevelsByTopic } = require('../src/db/queries');
-    const levels = await getLevelsByTopic('test', 0);
+    const levels = await getLevelsByTopic('test', '');
 
     expect(levels).toHaveLength(2);
   });

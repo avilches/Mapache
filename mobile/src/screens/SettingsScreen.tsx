@@ -15,8 +15,11 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as FileSystem from 'expo-file-system/legacy';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../theme';
 import { useSettingsStore } from '../store/settingsStore';
+import { extractBundledLevels, scanInstalledLevels, loadProgress } from '../store/appStore';
 import { downloadAndInstallLevel, DownloadProgress } from '../utils/downloadLevel';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
@@ -39,10 +42,40 @@ export function SettingsScreen({ navigation }: Props) {
 
   const [downloadUrl, setDownloadUrl] = useState('');
   const [downloadProgress, setDownloadProgress] = useState<DownloadProgress | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   const gradientColors = theme.name === 'dark'
     ? [theme.bg, theme.bgAlt] as const
     : [theme.bgAlt, theme.bg] as const;
+
+  function handleResetAllData() {
+    Alert.alert(
+      'Borrar todos los datos',
+      'Se eliminarán los niveles extraídos y todo el progreso del usuario. Los niveles se volverán a cargar desde los ZIPs bundleados.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Borrar todo',
+          style: 'destructive',
+          onPress: async () => {
+            setResetting(true);
+            try {
+              const levelsDir = FileSystem.documentDirectory + 'levels/';
+              await FileSystem.deleteAsync(levelsDir, { idempotent: true });
+              await AsyncStorage.multiRemove(['progress', 'seenLevelIds', 'lastTopicId']);
+              useSettingsStore.setState({ seenLevelIds: [], lastTopicId: null });
+              await extractBundledLevels();
+              await scanInstalledLevels();
+              await loadProgress();
+              Alert.alert('Datos borrados', 'Los niveles se han vuelto a cargar desde cero.');
+            } finally {
+              setResetting(false);
+            }
+          },
+        },
+      ]
+    );
+  }
 
   async function handleDownload() {
     if (!downloadUrl.trim()) {
@@ -156,10 +189,29 @@ export function SettingsScreen({ navigation }: Props) {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Formato del archivo</Text>
             <Text style={styles.code}>{JSON.stringify({
-              metadata: { id: "trav-adv-2", topicId: "travel", title: "Situaciones imprevistas 2", difficulty: 5, dateAdded: "2024-01-01" },
+              metadata: { id: "travel-B2-1", topicId: "travel", title: "Situaciones imprevistas", difficulty: "B2", dateAdded: "2025-01-01" },
               phrases: [{ spanish: "Hola", english: "Hello" }],
               audio: { "001": "<base64 mp3>" }
             }, null, 2)}</Text>
+          </View>
+
+          {/* Danger zone */}
+          <View style={[styles.section, styles.dangerSection]}>
+            <Text style={[styles.sectionTitle, { color: theme.red }]}>Zona de peligro</Text>
+            <Text style={styles.sectionDesc}>
+              Borra todos los niveles extraídos y el progreso del usuario. Los niveles se vuelven a cargar desde los ZIPs bundleados.
+            </Text>
+            <TouchableOpacity
+              style={[styles.downloadBtn, { backgroundColor: theme.red }, resetting && styles.downloadBtnDisabled]}
+              onPress={handleResetAllData}
+              disabled={resetting}
+              activeOpacity={0.8}
+            >
+              {resetting
+                ? <ActivityIndicator size="small" color={theme.onPrimary} />
+                : <Text style={styles.downloadBtnText}>Borrar todos los datos</Text>
+              }
+            </TouchableOpacity>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -246,6 +298,9 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       color: theme.onPrimary,
       fontWeight: '700',
       fontSize: 15,
+    },
+    dangerSection: {
+      borderColor: theme.red + '40',
     },
     code: {
       fontFamily: Platform.OS === 'ios' ? 'Courier New' : 'monospace',
