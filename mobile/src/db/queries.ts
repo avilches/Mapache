@@ -49,6 +49,7 @@ export interface LevelWithProgress {
   id: string;
   topic_id: string;
   title: string;
+  description: string;
   difficulty: CEFRLevel;
   date_added: string;
   total_phrases: number;

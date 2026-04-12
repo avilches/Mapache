@@ -2,7 +2,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { installDownloadedLevel } from '../store/appStore';
 
 export interface DownloadProgress {
-  stage: 'downloading' | 'extracting' | 'importing' | 'done' | 'error';
+  stage: 'downloading' | 'extracting' | 'done' | 'error';
   progress?: number;
   error?: string;
 }

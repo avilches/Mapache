@@ -21,8 +21,7 @@ admin/                       Scripts Python de gestión de contenido
     │   ├── phrases.json     Array JSON [{es, en, grammar_focus, tip}]
     │   └── audio/           MP3 generados: 001.mp3, 002.mp3...
     ├── greetings-B1-1/
-    ├── travel-A1-1/ travel-A2-1/ travel-B2-1/
-    └── ...
+    └── travel-A1-1/ travel-A2-1/ travel-B2-1/
 
 mobile/                      App React Native + Expo
 ├── App.tsx                  Stack Navigator + boot sequence
@@ -30,12 +29,13 @@ mobile/                      App React Native + Expo
 └── src/
     ├── store/appStore.ts    Store en memoria + extracción ZIPs + BUNDLED_ZIPS
     ├── store/settingsStore  Zustand: themeMode, difficultyFilter, seenLevelIds, lastTopicId
-    ├── db/queries.ts        Interfaz de datos (wrappers sobre appStore)
+    ├── db/queries.ts        Lecturas/mutaciones sobre el store + constantes de rating
+    ├── db/session.ts        SessionController: cola + cursor + listens + timer pausable
     ├── theme/index.ts       Paletas solarizadas + useTheme()
     ├── hooks/useAudio.ts    Reproduce audio desde URI file://
     ├── utils/downloadLevel  Descarga e instala level ZIP desde URL
     ├── components/PhraseCard Card animada con gestos + ref imperativo
-    └── screens/             Home, TopicList, LevelList, Play, Settings
+    └── screens/             TopicList, LevelList, Play, Settings
 ```
 
 ---
@@ -93,14 +93,16 @@ Los topics se definen una sola vez en `admin/topics.json` como un array:
 
 ```json
 [
-  { "id": "greetings",  "name": "Saludos",         "icon": "hand-left-outline",  "color": "#268bd2" },
-  { "id": "restaurant", "name": "Restaurante",     "icon": "restaurant-outline", "color": "#2aa198" },
-  { "id": "travel",     "name": "Viajes",          "icon": "airplane-outline",   "color": "#859900" },
-  { "id": "daily",      "name": "Vida cotidiana",  "icon": "chatbubbles-outline","color": "#cb4b16" }
+  { "id": "daily",      "name": "Vida cotidiana", "icon": "chatbubbles-outline","color": "#cb4b16" },
+  { "id": "greetings",  "name": "Saludos",        "icon": "hand-left-outline",  "color": "#268bd2" },
+  { "id": "restaurant", "name": "Restaurante",    "icon": "restaurant-outline", "color": "#2aa198" },
+  { "id": "travel",     "name": "Viajes",         "icon": "airplane-outline",   "color": "#859900" }
 ]
 ```
 
 `icon` es un nombre de Ionicon (`@expo/vector-icons`). `sync_mobile.py` inyecta el topic correspondiente en cada ZIP de level como `topic.json`, de modo que la app no necesita `topics.json` en runtime. Los topics se ordenan alfabéticamente por nombre (`localeCompare('es')`).
+
+Un topic declarado en `topics.json` que no tenga ningún level en `admin/levels/` **nunca aparece en la app**: `scanInstalledLevels()` sólo puebla `topics` leyendo el `topic.json` embebido en los ZIPs extraídos, así que sin levels no hay ZIPs y sin ZIPs no hay topic visible. Hoy `daily` y `restaurant` están en esta situación (ver `DOC_INCONSISTENCIES.md`).
 
 ### Formato de meta.json
 
@@ -184,7 +186,7 @@ TUI en el terminal para practicar frases. Precede al móvil. El audio se genera 
 | Zustand | — | Store de ajustes |
 | AsyncStorage | — | Persistencia de progreso y ajustes |
 
-**No hay SQLite.** El contenido vive como JSON en memoria y el progreso del usuario como JSON en AsyncStorage bajo la clave `'progress'`.
+**No hay SQLite.** El contenido vive como JSON en memoria y el progreso del usuario como JSON en AsyncStorage bajo la clave `'progress'`. (La dependencia `expo-sqlite` sigue en `package.json` pero no se importa en ningún sitio — ver `DOC_INCONSISTENCIES.md`.)
 
 ### Arquitectura de datos (sin base de datos)
 
@@ -192,9 +194,9 @@ El contenido se carga desde ZIPs extraídos al `documentDirectory`:
 
 ```
 documentDirectory/levels/
-├── greet-basic-1/
+├── greetings-A1-1/
 │   ├── meta.json       { id, topicId, title, difficulty, dateAdded }
-│   ├── phrases.json    [ { spanish, english }, ... ]
+│   ├── phrases.json    [ { spanish, english, grammar_focus?, tip? }, ... ]
 │   ├── topic.json      { id, name, icon, color }
 │   └── audio/
 │       ├── 001.mp3
@@ -211,7 +213,9 @@ loadProgress()           — AsyncStorage 'progress' → phraseProgress + levelP
   → scanInstalledLevels()  — Lee todos los directorios y puebla el store en memoria
 ```
 
-`extractBundledLevels` es idempotente: si un level ya está extraído con el mismo `dateAdded` no lo reescribe. Los levels descargados se instalan en el mismo directorio, así que bundled y downloaded son **indistinguibles en runtime**.
+`extractBundledLevels` es idempotente: si el directorio del level ya existe y contiene `topic.json`, lo salta. **Importante**: sólo comprueba existencia, no compara `dateAdded`, así que un ZIP bundleado actualizado con el mismo `id` **no se re-extrae** al reiniciar — el usuario ve el contenido viejo hasta que use "Borrar todos los datos" en Settings. Está documentado como bug en `DOC_INCONSISTENCIES.md`.
+
+Los levels descargados se instalan en el mismo directorio, así que bundled y downloaded son **indistinguibles en runtime**.
 
 **Tipos en memoria** (`src/store/appStore.ts`):
 
@@ -232,24 +236,25 @@ Todo el progreso vive en AsyncStorage bajo la clave `'progress'` como JSON:
 ```json
 {
   "phraseProgress": {
-    "greet-basic-1-1": { "rating": -1, "seenCount": 3, "lastRating": "easy", "lastSeenAt": 1700000000000 }
+    "greetings-A1-1-1": { "rating": -1, "seenCount": 3, "lastRating": "easy", "lastSeenAt": 1700000000000 }
   },
   "levelProgress": {
-    "greet-basic-1": { "completedSessions": 2, "lastPlayedAt": "2026-04-08T12:00:00.000Z", "totalListens": 15, "totalTimeSeconds": 240 }
+    "greetings-A1-1": { "completedSessions": 2, "lastPlayedAt": "2026-04-08T12:00:00.000Z", "totalListens": 15, "totalTimeSeconds": 240 }
   }
 }
 ```
+
+Los IDs de frase se construyen en `scanInstalledLevels` como `${levelId}-${sortOrder}` (1-based). `levelProgress` se indexa por `levelId`.
 
 `saveProgress()` serializa ambos objetos tras cualquier mutación. `loadProgress()` detecta automáticamente el esquema legacy (`learned: boolean`) y lo migra (ver sección "Migración" más abajo).
 
 ### Navegación (Stack puro, sin Tab Navigator)
 
 ```
-HomeScreen
-  └─ [Empezar / Volver al tema] → TopicListScreen
-                                     └─ [tap topic] → LevelListScreen { topicId }
-                                                        └─ [tap level] → PlayScreen { levelId, levelTitle, topicId }
-                                                                            └─ FinishedView (inline)
+TopicListScreen  (pantalla inicial)
+  ├─ [tap topic] → LevelListScreen { topicId }
+  │                  └─ [tap level] → PlayScreen { levelId, levelTitle, topicId }
+  │                                     └─ FinishedView (inline)
   └─ [⚙️] → SettingsScreen
 ```
 
@@ -257,7 +262,6 @@ HomeScreen
 
 ```ts
 {
-  Home: undefined;
   TopicList: undefined;
   LevelList: { topicId: string };
   Play: { levelId: string; levelTitle: string; topicId: string };
@@ -265,11 +269,13 @@ HomeScreen
 }
 ```
 
-`HomeScreen` tiene una bottom bar fija con un botón grande centrado ("Volver al tema" si `lastTopicId` existe en settings, si no "Empezar") y un botón ⚙️ a la derecha. No hay Tab Navigator — los topics se muestran en `TopicListScreen`.
+La app arranca directamente en `TopicListScreen`. No hay HomeScreen activo (existe `src/screens/HomeScreen.tsx` en el repo pero no se importa en ningún sitio — ver `DOC_INCONSISTENCIES.md`).
 
 ### Filtro de dificultad
 
-`difficultyFilter` (0=todos, 1|2|3) en `settingsStore`, persistido en AsyncStorage. Se aplica en `getLevelsByTopic(topicId, difficultyFilter)` y se cambia directamente desde `LevelListScreen` con cuatro pills (Todos/Básico/Intermedio/Avanzado). **No está en Settings** — el usuario lo ajusta en contexto al elegir niveles. El `difficultyFilter` activo también determina cuál es el "siguiente nivel" al terminar una sesión.
+`difficultyFilter: '' | CEFRLevel` en `settingsStore`, persistido en AsyncStorage (`''` = todos). Se aplica en `getLevelsByTopic(topicId, difficultyFilter)` y se cambia directamente desde `LevelListScreen` con pills CEFR (A1/A2/B1/B2/C1/C2), que sólo se muestran para las dificultades con al menos un level en el topic. Toggle: pulsar el filtro activo lo deselecciona (= todos). **No está en Settings** — el usuario lo ajusta en contexto al elegir niveles. El `difficultyFilter` activo también determina cuál es el "siguiente nivel" al terminar una sesión.
+
+Labels (`DIFFICULTY_LABELS` en `LevelListScreen.tsx`): A1=Principiante, A2=Elemental, B1=Intermedio, B2=Intermedio alto, C1=Avanzado, C2=Maestría. `loadSettings` migra valores antiguos numéricos (`'0'..'6'`) a sus códigos CEFR (ver `LEGACY_FILTER_MAP` en `settingsStore.ts`). Si el filtro actual apunta a una dificultad sin levels en el topic abierto, `LevelListScreen` lo limpia a `''` automáticamente.
 
 ### Badge ¡Nuevo!
 
@@ -284,7 +290,7 @@ idle
   → [tap texto]   → revealed (muestra texto inglés nítido)
   → [tap Listen]  → reproduce de nuevo, sin cambiar de estado
 ```
-El estado se resetea a `idle` en cada cambio de frase.
+El estado se resetea a `idle` en cada cambio de frase. El tipo `ListenState` también declara un cuarto valor `'playing'` pero nunca se asigna en el código actual (dead state — ver `DOC_INCONSISTENCIES.md`).
 
 #### Gestos y teclado
 | Gesto | Tecla (web/Mac) | Acción |
@@ -319,18 +325,36 @@ PhraseProg = {
 
 **Constraint crítico — normalización relativa**: si todos los ratings son iguales, `rating_i - mean = 0` para todas las frases → pesos `exp(0) = 1` uniformes → `key_i = random()` → shuffle aleatorio puro. Es decir, calificar todo fácil o todo difícil **no tiene efecto** en la ordenación. Solo la desviación respecto al promedio del nivel cuenta.
 
-**Dinámica durante la sesión** (estado en `PlayScreen`):
+**Dinámica durante la sesión** — encapsulada en `SessionController` (`src/db/session.ts`). `PlayScreen` la crea con `createSession(levelId)` y guarda la referencia en un `useRef`. El controller tiene estado en closure:
 
-- `queueRef: Phrase[]` — cola mutable, inicialmente `buildSessionQueue(levelId)`.
+- `queue: Phrase[]` — cola mutable, inicialmente `buildSessionQueue(levelId)`.
 - `cursor: number` — índice de la frase actual.
-- `reinsertCountRef: Map<phraseId, number>` — cuenta reinserciones por frase.
+- `reinsertCount: Map<phraseId, number>` — reinserciones hard acumuladas por frase.
+- `listens: number` — cuántas veces el usuario ha pulsado Listen en la sesión.
+- `activeMs + segmentStart` — timer pausable de tiempo activo.
 
-Al calificar la frase en `cursor`:
-- **easy / ok**: `ratePhraseInDb(id, levelId, rating)` → actualiza rating, `seenCount++`, `lastRating`, `lastSeenAt`. `cursor++`.
-- **hard**: igual que arriba; además, si `reinsertCount[id] < MAX_REINSERT_PER_PHRASE` (3), inserta la frase en `queue[cursor + K_HARD_REINSERT]` (4 posiciones más adelante, clamped a `queue.length`). Cap anti-loop: una frase eternamente difícil se reinserta máximo 3 veces por sesión, pero su `rating` persistente sigue creciendo y aparecerá primera en la siguiente sesión.
-- **prev**: `cursor = max(0, cursor - 1)`. No toca rating.
+Métodos expuestos por `SessionController`:
 
-Fin de sesión: `cursor >= queue.length` → `completeLevel()` → `FinishedView`.
+| Método | Efecto |
+|---|---|
+| `current()` | `queue[cursor]` |
+| `isFinished()` | `cursor >= queue.length` |
+| `position() / size()` | cursor / longitud actual |
+| `rate(rating)` | Persiste vía `ratePhraseInDb`; si `hard` llama a `reinsertHard` (con cap); `cursor++` |
+| `back()` | `cursor = max(0, cursor - 1)`, no toca rating |
+| `listen()` | `listens += 1` |
+| `pause() / resume()` | acumula/reanuda `activeMs` |
+| `finish()` | Llama `completeLevel(levelId, listens, Math.round(activeMs/1000))` (una sola vez, idempotente) y devuelve `getLevelStats(levelId)` |
+| `repeat()` | Rebuild de la cola con los ratings actuales; resetea cursor/listens/timer |
+| `resetAndRepeat()` | `resetLevelProgress(levelId)` + `repeat()` |
+
+`PlayScreen` conecta estos métodos con:
+- **Audio**: `handleListen` → `session.listen()` + `playAudio(phrase.audio_path)`.
+- **Gestos y teclado**: `handleRate('easy'|'ok'|'hard')` → `session.rate(...)`; `handlePrev` → `session.back()`.
+- **`AppState`**: listener que llama `session.pause()` en background/inactive y `session.resume()` en active.
+- **Fin**: tras `s.rate(...)`, si `s.isFinished()` → `await s.finish()` → `FinishedView` con los stats devueltos.
+
+Entre `hard` y la reinserción: si `reinsertCount[id] < MAX_REINSERT_PER_PHRASE` (3), la frase se inserta en `queue[min(cursor + K_HARD_REINSERT, queue.length)]`. Cap anti-loop: una frase eternamente difícil se reinserta máximo 3 veces por sesión, pero su `rating` persistente sigue creciendo y aparecerá primera en la siguiente sesión.
 
 **Constantes exportadas desde `queries.ts`**: `K_RATING=0.8`, `K_HARD_REINSERT=4`, `MAX_REINSERT_PER_PHRASE=3`, `MASTERY_MARGIN=1`.
 
@@ -343,18 +367,19 @@ Línea discreta en la parte superior de cada tarjeta: `Visto N · Última: {fác
 `masteredCount` (reemplaza al antiguo `learnedCount`) es el número de frases con `rating ≤ mean - MASTERY_MARGIN`. Umbral **relativo**: si todos los ratings son iguales, `mean - 1` es menor que todos los ratings → 0 dominadas, coherente con el constraint de normalización. Se muestra en `LevelListScreen` como contador del nivel y en `FinishedView` como estadística de sesión.
 
 #### FinishedView
-- **Siguiente nivel** (botón primario, solo si existe): navega con `navigation.replace('Play', ...)` al siguiente nivel del mismo topic, respetando el `difficultyFilter` activo. Si el usuario filtró por "Básico", no saltará a un nivel intermedio. Si es el último nivel del filtro, muestra *"Último nivel del tema"* en lugar del botón.
-- **Repetir nivel**: reconstruye `queueRef` con `buildSessionQueue(levelId)` usando los ratings actuales (no resetea nada).
-- **Empezar de cero**: `resetLevelProgress(levelId)` → todas las frases vuelven a `{rating:0, seenCount:0, lastRating:null, lastSeenAt:null}` → rebuild de la cola.
+- **Estadísticas mostradas**: `masteredCount / totalPhrases`, tiempo activo en esta lección (`totalTimeSeconds` formateado `Ns`/`Nm Ns`/`Nm`), número de `totalListens`. Todo devuelto por `session.finish()` → `getLevelStats(levelId)`.
+- **Siguiente nivel** (botón primario, solo si existe): navega con `navigation.replace('Play', ...)` al siguiente nivel del mismo topic, respetando el `difficultyFilter` activo. Si el usuario filtró por A1, no saltará a un nivel de A2. Si es el último nivel del filtro, muestra *"Último nivel del tema"* en lugar del botón.
+- **Repetir nivel**: `session.repeat()` — reconstruye la cola con `buildSessionQueue(levelId)` usando los ratings actuales (no resetea nada).
+- **Empezar de cero**: `session.resetAndRepeat()` → `resetLevelProgress(levelId)` → todas las frases vuelven a `{rating:0, seenCount:0, lastRating:null, lastSeenAt:null}` → rebuild de la cola.
 - **Volver al menú**: `navigation.goBack()`.
 
 #### Migración desde el esquema antiguo
 
-`loadProgress()` detecta entries con `typeof learned === 'boolean'` y las convierte:
+`loadProgress()` (en `appStore.ts`) detecta entries con `typeof learned === 'boolean'` y las convierte:
 - `learned:true` → `{rating:-3, seenCount, lastRating:'easy', lastSeenAt:null}` (queda claramente por debajo del promedio, baja prioridad).
 - `learned:false` → `{rating:0, seenCount, lastRating:null, lastSeenAt:null}`.
 
-Tras migrar se llama a `saveProgress()` para persistir en el formato nuevo (idempotente — si ya está migrado, no re-dispara).
+El `seenCount` del entry legacy se preserva. Tras migrar se llama a `saveProgress()` para persistir en el formato nuevo (idempotente — si ya no quedan entries legacy, `didMigrate` es `false` y no se reescribe).
 
 ### Sistema de audio
 
@@ -379,11 +404,22 @@ Si se añaden o modifican levels vía `sync_mobile.py`, basta con reiniciar la a
 
 Desde SettingsScreen el usuario puede pegar una URL que apunte a un ZIP con el mismo formato que los bundled (`meta.json` + `phrases.json` + `topic.json` + `audio/*.mp3`). `src/utils/downloadLevel.ts`:
 
-1. Descarga el ZIP a `cacheDirectory/level_download.zip` usando `FileSystem.createDownloadResumable` (con progreso).
-2. Llama a `installDownloadedLevel(zipPath)` en `appStore.ts`, que lo extrae a `documentDirectory/levels/{id}/` y lo escanea.
-3. Borra el ZIP de caché.
+1. Descarga el ZIP a `cacheDirectory/level_download.zip` usando `FileSystem.createDownloadResumable` (con progreso). Stage `'downloading'`.
+2. Llama a `installDownloadedLevel(zipPath)` en `appStore.ts`, que lo extrae a `documentDirectory/levels/{id}/` y lo re-escanea. Stage `'extracting'`.
+3. Stage `'done'` y en el `finally` borra el ZIP de caché (idempotente).
+4. Si cualquier paso lanza, emite stage `'error'` con el `error.message`.
 
-Bundled y downloaded son idénticos en runtime — mismo directorio, misma lectura, mismas operaciones. No hay JSON base64 ni formato intermedio.
+El tipo `DownloadProgress` incluye además un stage `'importing'` que hoy nunca se emite (ver `DOC_INCONSISTENCIES.md`). Bundled y downloaded son idénticos en runtime — mismo directorio, misma lectura, mismas operaciones. No hay JSON base64 ni formato intermedio.
+
+### Settings — zona de peligro
+
+`SettingsScreen` también expone un botón "Borrar todos los datos" que:
+1. `FileSystem.deleteAsync(documentDirectory/levels/, {idempotent:true})`
+2. `AsyncStorage.multiRemove(['progress','seenLevelIds','lastTopicId'])`
+3. Resetea en memoria `seenLevelIds`/`lastTopicId`
+4. Re-llama a `extractBundledLevels() → scanInstalledLevels() → loadProgress()`
+
+Tras esto los levels bundleados vuelven a aparecer desde cero, sin progreso. Es la única forma de forzar la re-extracción de un level bundleado cuyo ZIP ha cambiado (ver bug de idempotencia más arriba).
 
 ### Tema visual
 
@@ -439,7 +475,7 @@ npx expo run:ios --device   # requiere Xcode + cuenta Apple gratuita, expira en 
 ```bash
 # Desde mobile/
 npx tsc --noEmit            # verificar tipos
-npm test                    # 47 tests (appStore + queries + session)
+npm test                    # 59 tests, 4 suites
 npx expo start --clear      # limpiar caché de Metro
 
 # Desde admin/
@@ -448,8 +484,9 @@ python3 validate_levels.py  # valida admin/levels vs mobile/assets/levels
 
 ### Tests
 
-Tests Jest en `mobile/__tests__/`, mocks en `mobile/__mocks__/`. Cubren:
+Tests Jest en `mobile/__tests__/`, mocks en `mobile/__mocks__/`. 4 suites, 59 tests:
 
 - **`appStore.test.ts`**: `loadProgress` / `saveProgress`, `scanInstalledLevels`, `setPhraseProgressEntry`, `setLevelProgressEntry`, `deleteLevelFromStore`. Usa mock de `expo-file-system/legacy` y `AsyncStorage` (global para sobrevivir `jest.resetModules()`).
 - **`queries.test.ts`**: `getLevelsByTopic` con filtro de dificultad, `buildSessionQueue`, `ratePhraseInDb`, `getLevelStats` con umbral relativo, `resetLevelProgress`, `deleteLevel`.
 - **`session.test.ts`**: constraint de normalización (todo igual → sin efecto), efecto relativo, reinserción hard con cap anti-loop, `getNextLevelId` respetando filtro, migración legacy desde `learned:boolean`, `masteredCount` con umbral relativo. Usa `jest.spyOn(Math, 'random')` para tests deterministas.
+- **`sessionController.test.ts`**: el `SessionController` completo — pause/resume del timer inyectando `now`, contador de `listens`, `finish` idempotente (llamar dos veces no duplica `completedSessions`), `repeat` vs `resetAndRepeat`, reinserciones hard contabilizadas en la cola del controller.

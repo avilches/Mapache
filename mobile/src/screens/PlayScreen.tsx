@@ -33,7 +33,7 @@ import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../../App';
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Play'>;
-type ListenState = 'idle' | 'playing' | 'played' | 'revealed';
+type ListenState = 'idle' | 'played' | 'revealed';
 
 export function PlayScreen({ route, navigation }: Props) {
   const { levelId, levelTitle, topicId } = route.params;
@@ -134,7 +134,6 @@ export function PlayScreen({ route, navigation }: Props) {
     const s = sessionRef.current;
     const phrase = s?.current();
     if (!s || !phrase) return;
-    if (listenState === 'playing') return;
     if (listenState === 'idle') {
       setListenState('played');
     }

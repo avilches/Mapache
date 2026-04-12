@@ -33,9 +33,11 @@ TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
 
 # ─── Helpers ──────────────────────────────────────────────────────────────────
 
-REQUIRED_META_FIELDS = {"id", "topicId", "title", "difficulty", "dateAdded"}
+REQUIRED_META_FIELDS = {"id", "topicId", "title", "description", "difficulty", "dateAdded"}
 VALID_DIFFICULTIES = {'A1', 'A2', 'B1', 'B2', 'C1', 'C2'}
-PACK_NAME_RE = re.compile(r"^[a-z][a-z0-9-]*-(?:A1|A2|B1|B2|C1|C2)-\d+$")
+PACK_NAME_RE = re.compile(
+    r"^[a-z][a-z0-9_]*-[a-z][a-z0-9_]*-(?:A1|A2|B1|B2|C1|C2)-\d+$"
+)
 BUNDLED_ZIPS_RE = re.compile(
     r"const BUNDLED_ZIPS[^{]*\{([^}]*)\}", re.DOTALL
 )
@@ -88,7 +90,7 @@ def validate_topics_json() -> tuple[set[str], list[str]]:
         if not isinstance(data, list):
             errors.append("admin/topics.json: debe ser un array JSON")
             return valid_ids, errors
-        required = {"id", "name", "icon", "color"}
+        required = {"id", "title", "description", "icon", "color"}
         for i, t in enumerate(data):
             missing = required - set(t.keys())
             if missing:
@@ -130,7 +132,7 @@ def validate_admin_levels(valid_topic_ids: set[str] | None = None) -> tuple[list
         # Convención de nombre
         if not PACK_NAME_RE.match(pack_id):
             errors.append(
-                "nombre no sigue la convención <topicId>-<A1|A2|B1|B2|C1|C2>-<número>"
+                "nombre no sigue la convención <topicId>-<levelId>-<A1|A2|B1|B2|C1|C2>-<número>"
             )
 
         # meta.json
@@ -297,7 +299,7 @@ def validate_zips(admin_packs: list[dict]) -> tuple[list[dict], list[str]]:
                 if zip_meta and pack_id in admin_meta_by_id:
                     admin_meta = admin_meta_by_id[pack_id]
                     mismatches = []
-                    for field in ("id", "topicId", "title", "difficulty"):
+                    for field in ("id", "topicId", "title", "description", "difficulty"):
                         if zip_meta.get(field) != admin_meta.get(field):
                             mismatches.append(
                                 f"{field}: ZIP={zip_meta.get(field)!r} "
@@ -347,14 +349,13 @@ def validate_consistency(
     else:
         with open(APP_STORE_TS, encoding="utf-8") as f:
             ts_source = f.read()
-        bundled_ids = set(parse_bundled_zips(ts_source))
-
-        if not bundled_ids:
+        if not BUNDLED_ZIPS_RE.search(ts_source):
             bundled_errors.append(
-                "No se pudo parsear BUNDLED_ZIPS en appStore.ts "
-                "(¿cambió el formato del bloque?)"
+                "No se encontró el bloque BUNDLED_ZIPS en appStore.ts "
+                "(¿cambió el formato?)"
             )
         else:
+            bundled_ids = set(parse_bundled_zips(ts_source))
             extra = bundled_ids - zip_ids
             missing = zip_ids - bundled_ids
             for pid in sorted(extra):
@@ -365,8 +366,6 @@ def validate_consistency(
                 bundled_errors.append(
                     f"ZIP {pid}.zip existe pero falta en BUNDLED_ZIPS"
                 )
-            if not extra and not missing:
-                pass  # OK, se reporta en el resumen
 
     return errors + bundled_errors
 

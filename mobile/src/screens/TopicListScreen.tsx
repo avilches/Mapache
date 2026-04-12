@@ -61,7 +61,14 @@ export function TopicListScreen({ navigation }: Props) {
             activeOpacity={0.8}
           >
             <Ionicons name={item.icon as any} size={32} color={item.color} />
-            <Text style={styles.cardName}>{item.name}</Text>
+            <View style={styles.cardTextCol}>
+              <Text style={styles.cardName}>{item.title}</Text>
+              {!!item.description && (
+                <Text style={styles.cardDescription} numberOfLines={2}>
+                  {item.description}
+                </Text>
+              )}
+            </View>
             <Ionicons name="chevron-forward" size={22} color={theme.inactive} />
           </TouchableOpacity>
         )}
@@ -114,11 +121,19 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       shadowRadius: 8,
       elevation: 4,
     },
-    cardName: {
+    cardTextCol: {
       flex: 1,
+      gap: 2,
+    },
+    cardName: {
       fontSize: 20,
       fontWeight: '700',
       color: theme.textBold,
+    },
+    cardDescription: {
+      fontSize: 12,
+      color: theme.textSub,
+      lineHeight: 16,
     },
   });
 }

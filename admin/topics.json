@@ -1,6 +1,100 @@
 [
-  { "id": "daily",      "name": "Vida cotidiana", "icon": "chatbubbles-outline", "color": "#cb4b16" },
-  { "id": "greetings",  "name": "Saludos",         "icon": "hand-left-outline",  "color": "#268bd2" },
-  { "id": "restaurant", "name": "Restaurante",     "icon": "restaurant-outline", "color": "#2aa198" },
-  { "id": "travel",     "name": "Viajes",           "icon": "airplane-outline",  "color": "#859900" }
+  {
+    "id": "daily_life",
+    "title": "Vida diaria",
+    "description": "Rutinas, casa, familia y situaciones que pasan cualquier día: despertarse, cocinar, hacer recados, hablar con vecinos.",
+    "icon": "home-outline",
+    "color": "#268bd2"
+  },
+  {
+    "id": "work",
+    "title": "Trabajo",
+    "description": "Reuniones, emails, tareas y relaciones con compañeros. Situaciones reales de oficina: pedir algo, justificar un retraso, dar feedback.",
+    "icon": "briefcase-outline",
+    "color": "#859900"
+  },
+  {
+    "id": "travel",
+    "title": "Viajes",
+    "description": "Aeropuertos, hoteles, transporte y turismo. Situaciones donde hay que comunicarse bajo presión: perder un vuelo, pedir indicaciones, hacer una reserva.",
+    "icon": "airplane-outline",
+    "color": "#2aa198"
+  },
+  {
+    "id": "health",
+    "title": "Salud",
+    "description": "Síntomas difíciles de describir, visitas al médico, hábitos de sueño, energía y estrés. Vocabulario del cuerpo en situaciones reales, no de manual.",
+    "icon": "medkit-outline",
+    "color": "#dc322f"
+  },
+  {
+    "id": "food",
+    "title": "Gastronomía",
+    "description": "Pedir en restaurantes, hablar de ingredientes, describir sabores y texturas, cocinar siguiendo una receta. Más allá del 'I would like'.",
+    "icon": "restaurant-outline",
+    "color": "#cb4b16"
+  },
+  {
+    "id": "technology",
+    "title": "Tecnología",
+    "description": "Aplicaciones, dispositivos, problemas técnicos y contraseñas. El inglés digital real: el que aparece en pantallas, mensajes de error y tutoriales.",
+    "icon": "laptop-outline",
+    "color": "#6c71c4"
+  },
+  {
+    "id": "emotions",
+    "title": "Emociones",
+    "description": "Expresar cómo te sientes de manera precisa y matizada: no solo happy o sad, sino cansancio que no es sueño, nervios que no son miedo, alegría que no es euforia.",
+    "icon": "heart-outline",
+    "color": "#d33682"
+  },
+  {
+    "id": "awkward_conversations",
+    "title": "Conversaciones difíciles",
+    "description": "Cancelar planes, poner límites, pedir un favor incómodo, quejarse sin parecer maleducado, decir que no. El inglés de las situaciones sociales con fricción.",
+    "icon": "chatbubbles-outline",
+    "color": "#b58900"
+  },
+  {
+    "id": "money",
+    "title": "Dinero",
+    "description": "Dividir cuentas, hablar de precios, suscripciones, sueldos y gastos sin que suene raro ni grosero. El vocabulario financiero de la vida real, no del banco.",
+    "icon": "wallet-outline",
+    "color": "#859900"
+  },
+  {
+    "id": "urban_life",
+    "title": "Ciudad",
+    "description": "Moverse por una ciudad sin GPS, transporte público con problemas, vecinos, servicios municipales y todo lo que pasa en la calle.",
+    "icon": "business-outline",
+    "color": "#268bd2"
+  },
+  {
+    "id": "childhood_nostalgia",
+    "title": "Infancia",
+    "description": "Juegos de antes, comidas de casa, cosas que te decían de pequeño, recuerdos y comparaciones entre generaciones. Vocabulario que evoca pero que raramente se enseña.",
+    "icon": "balloon-outline",
+    "color": "#d33682"
+  },
+  {
+    "id": "opinions",
+    "title": "Opiniones",
+    "description": "Recomendar sin hacer spoiler, defender una postura impopular, discutir sin pelearse, cambiar de opinión con gracia. El inglés de la conversación intelectual ligera.",
+    "icon": "megaphone-outline",
+    "color": "#6c71c4"
+  },
+  {
+    "id": "nature_weather",
+    "title": "Naturaleza",
+    "description": "No el vocabulario básico de animales y colores, sino el cielo antes de tormenta, el calor que cala, animales molestos, fenómenos raros. La naturaleza experimentada.",
+    "icon": "leaf-outline",
+    "color": "#2aa198"
+  },
+  {
+    "id": "abstract_everyday",
+    "title": "Lo abstracto",
+    "description": "Sensación de que el tiempo pasa raro, tomar decisiones sin información suficiente, la diferencia entre querer y necesitar. El inglés de los pensamientos que cuesta poner en palabras.",
+    "icon": "cloudy-outline",
+    "color": "#657b83"
+  }
 ]

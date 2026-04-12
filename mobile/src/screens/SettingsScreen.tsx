@@ -82,9 +82,14 @@ export function SettingsScreen({ navigation }: Props) {
       Alert.alert('URL vacía', 'Introduce una URL válida');
       return;
     }
-    setDownloadProgress({ stage: 'downloading', progress: 0 });
-    await downloadAndInstallLevel(downloadUrl.trim(), setDownloadProgress);
-    if (downloadProgress?.stage !== 'error') {
+    let lastProgress: DownloadProgress = { stage: 'downloading', progress: 0 };
+    const handleProgress = (p: DownloadProgress) => {
+      lastProgress = p;
+      setDownloadProgress(p);
+    };
+    handleProgress(lastProgress);
+    await downloadAndInstallLevel(downloadUrl.trim(), handleProgress);
+    if (lastProgress.stage !== 'error') {
       setDownloadUrl('');
       Alert.alert('¡Listo!', 'El nivel se ha instalado correctamente.');
     }
@@ -93,7 +98,6 @@ export function SettingsScreen({ navigation }: Props) {
   const progressLabel: Record<string, string> = {
     downloading: 'Descargando...',
     extracting: 'Extrayendo...',
-    importing: 'Importando frases...',
     done: 'Completado',
     error: 'Error',
   };

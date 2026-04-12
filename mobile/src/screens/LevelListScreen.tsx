@@ -133,6 +133,11 @@ export function LevelListScreen({ route, navigation }: Props) {
         <Text style={[styles.levelTitle, isComplete && styles.levelTitleComplete]}>
           {item.title}
         </Text>
+        {!!item.description && (
+          <Text style={styles.levelDescription} numberOfLines={2}>
+            {item.description}
+          </Text>
+        )}
 
         <View style={styles.progressRow}>
           <View style={styles.progressBarBg}>
@@ -165,7 +170,12 @@ export function LevelListScreen({ route, navigation }: Props) {
           <Ionicons name="arrow-back" size={22} color={theme.textSub} />
         </TouchableOpacity>
         {topicData && <Ionicons name={topicData.icon as any} size={28} color={topicData.color} />}
-        <Text style={styles.themeTitle}>{topicData?.name ?? ''}</Text>
+        <View style={styles.headerTextCol}>
+          <Text style={styles.themeTitle}>{topicData?.title ?? ''}</Text>
+          {!!topicData?.description && (
+            <Text style={styles.themeDescription}>{topicData.description}</Text>
+          )}
+        </View>
         <TouchableOpacity onPress={() => navigation.navigate('Settings')} style={styles.settingsBtn}>
           <Ionicons name="settings-outline" size={18} color={theme.textSub} />
         </TouchableOpacity>
@@ -225,17 +235,26 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
     container: { flex: 1 },
     header: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       paddingHorizontal: 16,
       paddingBottom: 12,
       gap: 10,
     },
     backBtn: { padding: 8 },
+    headerTextCol: {
+      flex: 1,
+      gap: 2,
+      paddingTop: 2,
+    },
     themeTitle: {
       fontSize: 26,
       fontWeight: '800',
       color: theme.textBold,
-      flex: 1,
+    },
+    themeDescription: {
+      fontSize: 13,
+      color: theme.textSub,
+      lineHeight: 18,
     },
     filterRow: {
       flexDirection: 'row',
@@ -342,6 +361,11 @@ function makeStyles(theme: ReturnType<typeof useTheme>) {
       fontSize: 20,
       fontWeight: '700',
       color: theme.textBold,
+    },
+    levelDescription: {
+      fontSize: 12,
+      color: theme.textSub,
+      lineHeight: 16,
     },
     levelTitleComplete: {
       textDecorationLine: 'line-through',

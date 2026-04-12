@@ -15,12 +15,19 @@ import type {
 // Helpers to build mock level data
 const LEVEL_DIR = 'file:///mock-document/levels/test-basic-1/';
 
-const MOCK_TOPIC = { id: 'test', name: 'Test', icon: '🧪', color: '#268bd2' };
+const MOCK_TOPIC = {
+  id: 'test',
+  title: 'Test',
+  description: 'Topic de prueba',
+  icon: '🧪',
+  color: '#268bd2',
+};
 
 const MOCK_META = {
   id: 'test-basic-1',
   topicId: 'test',
   title: 'Test level',
+  description: 'Level de prueba',
   difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
@@ -151,7 +158,8 @@ describe('scanInstalledLevels', () => {
     expect(topics).toHaveLength(1);
     expect(topics[0]).toMatchObject({
       id: 'test',
-      name: 'Test',
+      title: 'Test',
+      description: 'Topic de prueba',
       icon: '🧪',
       color: '#268bd2',
     });
