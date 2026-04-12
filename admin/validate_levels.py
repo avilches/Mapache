@@ -36,7 +36,7 @@ TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
 REQUIRED_META_FIELDS = {"id", "topicId", "title", "description", "difficulty", "dateAdded"}
 VALID_DIFFICULTIES = {'A1', 'A2', 'B1', 'B2', 'C1', 'C2'}
 PACK_NAME_RE = re.compile(
-    r"^[a-z][a-z0-9_]*-[a-z][a-z0-9_]*-(?:A1|A2|B1|B2|C1|C2)-\d+$"
+    r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(?:A1|A2|B1|B2|C1|C2)-\d+$"
 )
 BUNDLED_ZIPS_RE = re.compile(
     r"const BUNDLED_ZIPS[^{]*\{([^}]*)\}", re.DOTALL

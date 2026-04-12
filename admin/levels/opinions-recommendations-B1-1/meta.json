@@ -1,0 +1,9 @@
+{
+  "id": "opinions-recommendations-B1-1",
+  "topicId": "opinions",
+  "title": "Recomendaciones",
+  "description": "Recomendar algo con entusiasmo o cautela sin revelar demasiado. Sugerir sin insistir.",
+  "difficulty": "B1",
+  "dateAdded": "2026-04-12",
+  "prompt": "Recomendar algo con entusiasmo o cautela sin revelar demasiado. Estructuras: 'you should', 'it's worth', 'don't expect too much but'. Condicional simple."
+}

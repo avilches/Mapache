@@ -1,0 +1,122 @@
+[
+  {
+    "es": "Cuanto más reflexiono sobre ello, menos sentido tiene mi reacción inicial.",
+    "en": "The more I think about it, the less sense my initial reaction makes.",
+    "grammar_focus": "estructura comparativa 'cuanto más... menos'",
+    "tip": "Requiere 'the more... the less' en inglés, no traducción literal"
+  },
+  {
+    "es": "Me encuentro preguntándome si realmente conozco mis propias motivaciones.",
+    "en": "I find myself wondering if I truly know my own motivations.",
+    "grammar_focus": "construcción reflexiva 'me encuentro + gerundio'",
+    "tip": "'Find myself' es más natural que traducir literalmente 'me encuentro'"
+  },
+  {
+    "es": "No es tanto que me arrepienta como que desearía haber actuado diferente.",
+    "en": "It's not so much that I regret it as that I wish I'd acted differently.",
+    "grammar_focus": "estructura 'no es tanto... como que'",
+    "tip": "Requiere 'not so much... as' para expresar contraste matizado"
+  },
+  {
+    "es": "Hay días en que el tiempo parece arrastrarse sin razón aparente.",
+    "en": "There are days when time seems to drag for no apparent reason.",
+    "grammar_focus": "expresión temporal 'hay días en que'",
+    "tip": "'There are days when' es más idiomático que 'there exist days'"
+  },
+  {
+    "es": "Acabé tomando una decisión a ciegas, sin tener todos los datos.",
+    "en": "I ended up making a blind decision without having all the facts.",
+    "grammar_focus": "perífrasis verbal 'acabar + gerundio'",
+    "tip": "'Ended up' expresa mejor el resultado inesperado que 'finished'"
+  },
+  {
+    "es": "Me cuesta distinguir entre lo que deseo y lo que verdaderamente necesito.",
+    "en": "I struggle to distinguish between what I want and what I truly need.",
+    "grammar_focus": "construcción 'me cuesta + infinitivo'",
+    "tip": "'Struggle to' es más natural que 'it costs me to'"
+  },
+  {
+    "es": "Tengo la sensación de que algo importante se me escapa de las manos.",
+    "en": "I have the feeling that something important is slipping through my fingers.",
+    "grammar_focus": "expresión idiomática 'escaparse de las manos'",
+    "tip": "'Slipping through fingers' es la expresión equivalente en inglés"
+  },
+  {
+    "es": "Por más que lo intento, no logro expresar en palabras lo que siento.",
+    "en": "No matter how hard I try, I can't put into words what I feel.",
+    "grammar_focus": "concesiva 'por más que'",
+    "tip": "'No matter how' expresa concesión mejor que 'for more that'"
+  },
+  {
+    "es": "Últimamente me da la impresión de que vivo en piloto automático.",
+    "en": "Lately I get the impression that I'm living on autopilot.",
+    "grammar_focus": "expresión 'dar la impresión'",
+    "tip": "'Get the impression' es más común que 'it gives me'"
+  },
+  {
+    "es": "Hay pensamientos que se resisten a ser puestos en palabras.",
+    "en": "There are thoughts that resist being put into words.",
+    "grammar_focus": "construcción pasiva reflexiva 'se resisten a ser'",
+    "tip": "El inglés usa voz activa donde español usa reflexiva pasiva"
+  },
+  {
+    "es": "Me viene dando vueltas en la cabeza esta idea desde hace semanas.",
+    "en": "This idea has been going round and round in my head for weeks.",
+    "grammar_focus": "perífrasis 'venir + gerundio' con duración",
+    "tip": "'Has been going' expresa mejor la continuidad que presente simple"
+  },
+  {
+    "es": "Cada vez que creo tenerlo claro, surgen nuevas dudas.",
+    "en": "Every time I think I have it clear, new doubts arise.",
+    "grammar_focus": "construcción temporal 'cada vez que'",
+    "tip": "'Every time' es más natural que 'each time' en este contexto"
+  },
+  {
+    "es": "Me pilla desprevenido lo rápido que cambian mis prioridades.",
+    "en": "I'm caught off guard by how quickly my priorities change.",
+    "grammar_focus": "expresión 'pillar desprevenido'",
+    "tip": "'Caught off guard' es la expresión idiomática equivalente"
+  },
+  {
+    "es": "Tengo la corazonada de que me estoy perdiendo algo fundamental.",
+    "en": "I have a hunch that I'm missing something fundamental.",
+    "grammar_focus": "sustantivo 'corazonada'",
+    "tip": "'Hunch' es más específico que 'feeling' para intuiciones"
+  },
+  {
+    "es": "Me resulta extraño cómo ciertos recuerdos cobran vida de repente.",
+    "en": "I find it strange how certain memories suddenly come to life.",
+    "grammar_focus": "construcción 'resultar + adjetivo'",
+    "tip": "'Find it strange' es más directo que 'it results strange'"
+  },
+  {
+    "es": "Hay momentos en que me siento como si estuviera viendo mi vida desde fuera.",
+    "en": "There are moments when I feel as if I were watching my life from outside.",
+    "grammar_focus": "subjuntivo en condicional irreal 'como si estuviera'",
+    "tip": "Inglés mantiene subjuntivo 'were' en esta construcción formal"
+  },
+  {
+    "es": "Me inquieta darme cuenta de lo poco que entiendo mis propias reacciones.",
+    "en": "It unsettles me to realize how little I understand my own reactions.",
+    "grammar_focus": "construcción 'me inquieta + infinitivo'",
+    "tip": "'It unsettles me to' es más natural que 'it inquiets me'"
+  },
+  {
+    "es": "Siento como si el tiempo se hubiera acelerado sin avisarme.",
+    "en": "I feel as though time had sped up without warning me.",
+    "grammar_focus": "pluscuamperfecto subjuntivo 'se hubiera acelerado'",
+    "tip": "Inglés usa 'had + past participle' en subjuntivo pasado"
+  },
+  {
+    "es": "Me cuesta trabajo aceptar que algunas cosas están fuera de mi control.",
+    "en": "I have trouble accepting that some things are beyond my control.",
+    "grammar_focus": "expresión 'costar trabajo'",
+    "tip": "'Have trouble' es más idiomático que 'it costs me work'"
+  },
+  {
+    "es": "Hay una parte de mí que se niega a reconocer lo evidente.",
+    "en": "There's a part of me that refuses to acknowledge the obvious.",
+    "grammar_focus": "construcción 'negarse a + infinitivo'",
+    "tip": "'Refuse to' es más directo que 'deny oneself to'"
+  }
+]

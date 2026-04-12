@@ -2,3 +2,6 @@ gtts
 textual
 rich
 questionary
+litellm
+python-dotenv
+openai

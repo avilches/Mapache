@@ -53,10 +53,11 @@ class PhrasesResult:
 
 
 def _build_prompt(meta: dict, topic: Optional[dict], n: int) -> str:
+    level_context = meta.get("prompt") or meta.get("description", "")
     tema = (
         f"Topic: {topic['title'] if topic else meta.get('topicId', '')} — "
         f"{(topic or {}).get('description', '')}\n"
-        f"Level: {meta['title']} — {meta.get('description', '')}"
+        f"Level: {meta['title']} — {level_context}"
     )
     cefr = meta["difficulty"]
     return PHRASES_PROMPT_TEMPLATE.format(
@@ -87,7 +88,10 @@ def generate_phrases_for_level(
 
     topic = get_topic(topics, meta.get("topicId", ""))
     prompt = _build_prompt(meta, topic, n)
-    raw = call_claude(prompt, f"[{level_id}] Generando {n} frases…")
+    try:
+        raw = call_claude(prompt, f"[{level_id}] Generando {n} frases…")
+    except RuntimeError as e:
+        return PhrasesResult("error", 0, str(e))
 
     try:
         phrases = extract_json(raw)

@@ -1,6 +1,6 @@
 [
   {
-    "id": "daily_life",
+    "id": "daily-life",
     "title": "Vida diaria",
     "description": "Rutinas, casa, familia y situaciones que pasan cualquier día: despertarse, cocinar, hacer recados, hablar con vecinos.",
     "icon": "home-outline",
@@ -49,7 +49,7 @@
     "color": "#d33682"
   },
   {
-    "id": "awkward_conversations",
+    "id": "awkward-conversations",
     "title": "Conversaciones difíciles",
     "description": "Cancelar planes, poner límites, pedir un favor incómodo, quejarse sin parecer maleducado, decir que no. El inglés de las situaciones sociales con fricción.",
     "icon": "chatbubbles-outline",
@@ -60,38 +60,38 @@
     "title": "Dinero",
     "description": "Dividir cuentas, hablar de precios, suscripciones, sueldos y gastos sin que suene raro ni grosero. El vocabulario financiero de la vida real, no del banco.",
     "icon": "wallet-outline",
-    "color": "#859900"
+    "color": "#b8860b"
   },
   {
-    "id": "urban_life",
+    "id": "urban-life",
     "title": "Ciudad",
     "description": "Moverse por una ciudad sin GPS, transporte público con problemas, vecinos, servicios municipales y todo lo que pasa en la calle.",
     "icon": "business-outline",
-    "color": "#268bd2"
+    "color": "#1a9bc7"
   },
   {
-    "id": "childhood_nostalgia",
+    "id": "childhood",
     "title": "Infancia",
     "description": "Juegos de antes, comidas de casa, cosas que te decían de pequeño, recuerdos y comparaciones entre generaciones. Vocabulario que evoca pero que raramente se enseña.",
     "icon": "balloon-outline",
-    "color": "#d33682"
+    "color": "#e84393"
   },
   {
     "id": "opinions",
     "title": "Opiniones",
     "description": "Recomendar sin hacer spoiler, defender una postura impopular, discutir sin pelearse, cambiar de opinión con gracia. El inglés de la conversación intelectual ligera.",
     "icon": "megaphone-outline",
-    "color": "#6c71c4"
+    "color": "#8e44ad"
   },
   {
-    "id": "nature_weather",
+    "id": "nature",
     "title": "Naturaleza",
     "description": "No el vocabulario básico de animales y colores, sino el cielo antes de tormenta, el calor que cala, animales molestos, fenómenos raros. La naturaleza experimentada.",
     "icon": "leaf-outline",
-    "color": "#2aa198"
+    "color": "#16a085"
   },
   {
-    "id": "abstract_everyday",
+    "id": "abstract-everyday",
     "title": "Lo abstracto",
     "description": "Sensación de que el tiempo pasa raro, tomar decisiones sin información suficiente, la diferencia entre querer y necesitar. El inglés de los pensamientos que cuesta poner en palabras.",
     "icon": "cloudy-outline",

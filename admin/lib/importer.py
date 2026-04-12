@@ -98,6 +98,7 @@ def apply_import(import_data: Optional[list[dict]] = None) -> ImportResult:
                     title=lv["title"],
                     description=lv.get("description", ""),
                     existing_dirs=existing_dirs,
+                    prompt=lv.get("prompt", ""),
                 )
                 result.levels_created.append(full_id)
             except Exception as e:

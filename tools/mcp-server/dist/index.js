@@ -74,10 +74,10 @@ async function toolTest() {
         : `Tests failed (exit ${exitCode}).`;
     return `${header}\n\n${output || "(no output)"}`;
 }
-async function toolValidatePacks() {
-    const scriptPath = path.join(ADMIN_DIR, "validate_packs.py");
+async function toolValidateLevels() {
+    const scriptPath = path.join(ADMIN_DIR, "validate_levels.py");
     if (!fs.existsSync(scriptPath)) {
-        return `Error: validate_packs.py not found at ${scriptPath}`;
+        return `Error: validate_levels.py not found at ${scriptPath}`;
     }
     const { output, exitCode } = await runCommand(`python3 "${scriptPath}"`, PROJECT_ROOT, 30_000);
     const header = exitCode === 0 ? "✓ Packs valid." : `Validation failed (exit ${exitCode}).`;
@@ -201,8 +201,8 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
             },
         },
         {
-            name: "validate_packs",
-            description: "Run `python3 admin/validate_packs.py` and return validation results.",
+            name: "validate_levels",
+            description: "Run `python3 admin/validate_levels.py` and return validation results.",
             inputSchema: {
                 type: "object",
                 properties: {},
@@ -253,8 +253,8 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         case "test":
             text = await toolTest();
             break;
-        case "validate_packs":
-            text = await toolValidatePacks();
+        case "validate_levels":
+            text = await toolValidateLevels();
             break;
         case "expo_start":
             text = await toolExpoStart();

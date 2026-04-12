@@ -172,8 +172,8 @@ def action_import(state: dict) -> None:
 
 def _validate_id(value: str, existing: set[str]) -> "bool | str":
     value = value.strip()
-    if not re.match(r"^[a-z][a-z0-9_]*$", value):
-        return "Usa solo letras minúsculas, dígitos y _. Debe empezar por letra."
+    if not re.match(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", value):
+        return "Usa kebab-case: letras minúsculas, dígitos y guiones. Debe empezar por letra."
     if value in existing:
         return f"Ya existe '{value}'."
     return True
@@ -184,7 +184,7 @@ def _create_topic_interactive() -> "dict | None":
     existing = {t["id"] for t in topics}
 
     topic_id = questionary.text(
-        "ID del topic (snake_case):",
+        "ID del topic (kebab-case):",
         validate=lambda v: _validate_id(v, existing),
     ).ask()
     if topic_id is None:
@@ -270,11 +270,11 @@ def action_create_level() -> None:
 
     def _val(v):
         v = v.strip()
-        if not re.match(r"^[a-z][a-z0-9_]*$", v):
-            return "snake_case: solo [a-z0-9_], empezar por letra"
+        if not re.match(r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$", v):
+            return "kebab-case: solo [a-z0-9-], empezar por letra"
         return True
 
-    level_id = questionary.text("levelId (snake_case, único dentro del topic):", validate=_val).ask()
+    level_id = questionary.text("levelId (kebab-case, único dentro del topic):", validate=_val).ask()
     if level_id is None:
         return
     level_id = level_id.strip()
@@ -295,6 +295,13 @@ def action_create_level() -> None:
         return
     description = description.strip()
 
+    prompt = questionary.text(
+        "Prompt para generación de frases (vacío = usa descripción):",
+    ).ask()
+    if prompt is None:
+        return
+    prompt = prompt.strip()
+
     try:
         full_id = create_level_dir(
             topic_id=topic["id"],
@@ -303,6 +310,7 @@ def action_create_level() -> None:
             title=title,
             description=description,
             existing_dirs=existing_dirs,
+            prompt=prompt,
         )
         console.print(f"[green]✓[/green] Level creado: {full_id}")
     except Exception as e:

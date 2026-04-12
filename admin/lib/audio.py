@@ -1,4 +1,8 @@
-"""Generación de MP3 vía gTTS a partir del campo `en` de phrases.json.
+"""Generación de MP3 a partir del campo `en` de phrases.json.
+
+Backend configurable via .env:
+- Si OPENAI_API_KEY está definida → OpenAI TTS (VOICE_MODEL, VOICE_NAME, VOICE_SPEED)
+- Si no → gTTS (fallback gratuito)
 
 Idempotente: sólo genera los mp3 que faltan. No borra huérfanos (los reporta).
 """
@@ -28,9 +32,28 @@ def _load_english_phrases(phrases_path: str) -> list[str]:
     return out
 
 
-def generate_audio_for_level(level_id: str) -> AudioResult:
-    from gtts import gTTS  # lazy import
+def _generate_with_openai(text: str, filepath: str) -> None:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+    model = os.environ.get("VOICE_MODEL", "tts-1-hd")
+    voice = os.environ.get("VOICE_NAME", "nova")
+    speed = float(os.environ.get("VOICE_SPEED", "0.9"))
+    response = client.audio.speech.create(
+        model=model,
+        voice=voice,
+        input=text,
+        speed=speed,
+    )
+    response.stream_to_file(filepath)
 
+
+def _generate_with_gtts(text: str, filepath: str) -> None:
+    from gtts import gTTS
+    tts = gTTS(text=text, lang="en", slow=False)
+    tts.save(filepath)
+
+
+def generate_audio_for_level(level_id: str) -> AudioResult:
     result = AudioResult()
     level_dir = os.path.join(LEVELS_DIR, level_id)
     phrases_path = os.path.join(level_dir, "phrases.json")
@@ -45,6 +68,7 @@ def generate_audio_for_level(level_id: str) -> AudioResult:
         result.error = "phrases.json vacío"
         return result
 
+    use_openai = bool(os.environ.get("OPENAI_API_KEY"))
     os.makedirs(audio_dir, exist_ok=True)
 
     for i, text in enumerate(phrases, start=1):
@@ -53,8 +77,10 @@ def generate_audio_for_level(level_id: str) -> AudioResult:
         if os.path.exists(filepath):
             result.skipped.append(i)
             continue
-        tts = gTTS(text=text, lang="en", slow=False)
-        tts.save(filepath)
+        if use_openai:
+            _generate_with_openai(text, filepath)
+        else:
+            _generate_with_gtts(text, filepath)
         result.generated.append(i)
 
     # huérfanos: mp3 con índice > len(phrases)

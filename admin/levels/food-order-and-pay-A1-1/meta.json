@@ -1,0 +1,9 @@
+{
+  "id": "food-order-and-pay-A1-1",
+  "topicId": "food",
+  "title": "Pedir y pagar",
+  "description": "Lo básico en un restaurante: pedir comida, preguntar el precio y pedir la cuenta.",
+  "difficulty": "A1",
+  "dateAdded": "2026-04-12",
+  "prompt": "Pedir comida, preguntar el precio, pedir la cuenta. Sin cognados como 'pizza' o 'pasta'. Verbos: have, want, need, pay."
+}

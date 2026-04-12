@@ -1,32 +1,37 @@
-"""Llamadas al binario `claude` y parseo tolerante de JSON."""
+"""Llamadas a LLM vía LiteLLM y parseo tolerante de JSON."""
 import json
+import os
 import re
-import subprocess
-import sys
 
+from dotenv import load_dotenv
 from rich.console import Console
+import litellm
+
+# Cargar .env desde admin/
+_HERE = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_HERE, os.pardir, ".env"))
 
 _console = Console()
 
+DEFAULT_MODEL = "claude-sonnet-4-20250514"
+
+# Silenciar logs internos de litellm
+litellm.suppress_debug_info = True
+
 
 def call_claude(prompt: str, status_msg: str) -> str:
-    """Llama a `claude -p --bare <prompt>` y devuelve stdout."""
-    with _console.status(f"[cyan]{status_msg}[/cyan]"):
+    """Llama al modelo configurado en MODEL (env) y devuelve el texto."""
+    model = os.environ.get("PHRASES_MODEL", DEFAULT_MODEL)
+    with _console.status(f"[cyan]{status_msg}[/cyan]  [dim]({model})[/dim]"):
         try:
-            result = subprocess.run(
-                ["claude", "-p", "--bare", prompt],
-                capture_output=True,
-                text=True,
-                check=True,
+            response = litellm.completion(
+                model=model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.7,
             )
-        except FileNotFoundError:
-            _console.print("[red]Error:[/red] no se encuentra el binario `claude` en el PATH.")
-            sys.exit(1)
-        except subprocess.CalledProcessError as e:
-            _console.print(f"[red]Claude falló con exit code {e.returncode}[/red]")
-            _console.print(f"[dim]stderr:[/dim] {e.stderr}")
-            sys.exit(1)
-    return result.stdout.strip()
+        except Exception as e:
+            raise RuntimeError(f"LLM error ({model}): {e}") from e
+    return response.choices[0].message.content.strip()
 
 
 def extract_json(raw: str):

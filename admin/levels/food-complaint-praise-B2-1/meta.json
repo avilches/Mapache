@@ -1,0 +1,9 @@
+{
+  "id": "food-complaint-praise-B2-1",
+  "topicId": "food",
+  "title": "Queja y elogio",
+  "description": "Devolver un plato con educación, elogiar con precisión y opinar sobre gastronomía con criterio.",
+  "difficulty": "B2",
+  "dateAdded": "2026-04-12",
+  "prompt": "Devolver un plato, elogiar con precisión, hablar de gastronomía con opinión. Voz pasiva (it was overcooked), condicional (I would have expected)."
+}

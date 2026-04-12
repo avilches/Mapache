@@ -1,0 +1,9 @@
+{
+  "id": "health-pharmacy-A2-1",
+  "topicId": "health",
+  "title": "En la farmacia",
+  "description": "Pedir medicamentos, describir síntomas sencillos y entender las indicaciones de un prospecto.",
+  "difficulty": "A2",
+  "dateAdded": "2026-04-12",
+  "prompt": "Pedir medicamentos, describir síntomas simples, entender indicaciones de dosis. Foco en 'have + dolor' vs. el calco 'my X hurts'."
+}

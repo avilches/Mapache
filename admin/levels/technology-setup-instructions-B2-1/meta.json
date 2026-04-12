@@ -1,0 +1,9 @@
+{
+  "id": "technology-setup-instructions-B2-1",
+  "topicId": "technology",
+  "title": "Instrucciones y configuración",
+  "description": "Seguir o dar instrucciones técnicas paso a paso: cambiar ajustes, explicar un problema a soporte técnico.",
+  "difficulty": "B2",
+  "dateAdded": "2026-04-12",
+  "prompt": "Seguir o dar instrucciones técnicas, cambiar ajustes, explicar un problema a soporte. Imperativo, voz pasiva, condicional: 'if the issue persists'."
+}

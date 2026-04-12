@@ -13,6 +13,9 @@ admin/packs/*/output/
 # macOS
 .DS_Store
 
+# Secrets
+.env
+
 # IDE
 .idea/
 /mobile/.expo/

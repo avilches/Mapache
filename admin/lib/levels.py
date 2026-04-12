@@ -1,9 +1,14 @@
 """Escaneo, parseo de IDs y creación de directorios de level.
 
 Convención de ID: {topicId}-{levelId}-{CEFR}-{N}
-  - topicId y levelId: snake_case (solo [a-z0-9_], empezar por letra)
+  - topicId y levelId: kebab-case (solo [a-z0-9-], empezar por letra)
   - CEFR: A1|A2|B1|B2|C1|C2
   - N: entero >= 1
+
+El separador entre segmentos es `-`, igual que dentro de topicId/levelId
+(kebab-case). Por eso el parseo necesita conocer los topic ids válidos
+para desambiguar. Se extrae CEFR+N desde la derecha y luego se prueba
+cada topic id como prefijo del resto.
 """
 import json
 import os
@@ -13,25 +18,48 @@ from typing import Optional
 
 from .paths import CEFR_LEVELS, LEVELS_DIR
 
-LEVEL_ID_RE = re.compile(
-    r"^(?P<topic>[a-z][a-z0-9_]*)-"
-    r"(?P<level>[a-z][a-z0-9_]*)-"
-    r"(?P<cefr>A1|A2|B1|B2|C1|C2)-"
-    r"(?P<n>\d+)$"
-)
+# Valida forma general: algo-CEFR-N al final
+LEVEL_TAIL_RE = re.compile(r"^(?P<prefix>.+)-(?P<cefr>A1|A2|B1|B2|C1|C2)-(?P<n>\d+)$")
 
 
-def parse_level_id(level_id: str) -> Optional[tuple[str, str, str, int]]:
-    """Devuelve (topic_id, level_id, cefr, n) o None si no matchea."""
-    m = LEVEL_ID_RE.match(level_id)
+def parse_level_id(
+    level_id: str,
+    known_topic_ids: Optional[set[str]] = None,
+) -> Optional[tuple[str, str, str, int]]:
+    """Devuelve (topic_id, level_id, cefr, n) o None si no matchea.
+
+    Si known_topic_ids se proporciona, desambigua el prefijo probando
+    cada topic id. Si no, intenta leer topicId del meta.json del level.
+    """
+    m = LEVEL_TAIL_RE.match(level_id)
     if not m:
         return None
-    return (
-        m.group("topic"),
-        m.group("level"),
-        m.group("cefr"),
-        int(m.group("n")),
-    )
+    prefix = m.group("prefix")  # topicId-levelId (sin CEFR-N)
+    cefr = m.group("cefr")
+    n = int(m.group("n"))
+
+    # cargar topic ids si no se proporcionan
+    if known_topic_ids is None:
+        meta_path = os.path.join(LEVELS_DIR, level_id, "meta.json")
+        if os.path.isfile(meta_path):
+            try:
+                with open(meta_path, encoding="utf-8") as f:
+                    meta = json.load(f)
+                tid = meta.get("topicId", "")
+                if prefix.startswith(tid + "-") and len(prefix) > len(tid) + 1:
+                    return (tid, prefix[len(tid) + 1:], cefr, n)
+            except Exception:
+                pass
+        return None
+
+    # probar cada topic id como prefijo (más largo primero para evitar falsos)
+    for tid in sorted(known_topic_ids, key=len, reverse=True):
+        expected = tid + "-"
+        if prefix.startswith(expected) and len(prefix) > len(expected):
+            lid = prefix[len(expected):]
+            return (tid, lid, cefr, n)
+
+    return None
 
 
 def build_level_id(topic_id: str, level_id: str, cefr: str, n: int) -> str:
@@ -85,6 +113,7 @@ def create_level_dir(
     title: str,
     description: str,
     existing_dirs: Optional[list[str]] = None,
+    prompt: str = "",
 ) -> str:
     """Crea admin/levels/<id>/meta.json y devuelve el id completo generado.
 
@@ -112,6 +141,8 @@ def create_level_dir(
         "difficulty": cefr,
         "dateAdded": date.today().isoformat(),
     }
+    if prompt:
+        meta["prompt"] = prompt
     with open(os.path.join(level_dir, "meta.json"), "w", encoding="utf-8") as f:
         json.dump(meta, f, ensure_ascii=False, indent=2)
         f.write("\n")

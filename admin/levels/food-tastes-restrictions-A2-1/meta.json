@@ -1,0 +1,9 @@
+{
+  "id": "food-tastes-restrictions-A2-1",
+  "topicId": "food",
+  "title": "Gustos y restricciones",
+  "description": "Expresar preferencias, alergias e intolerancias. Pedir que te quiten o cambien un ingrediente.",
+  "difficulty": "A2",
+  "dateAdded": "2026-04-12",
+  "prompt": "Preferencias, alergias, pedir sin un ingrediente. Foco en 'without', 'instead of', 'I'm allergic to'. Adjetivos de sabor y textura básicos."
+}

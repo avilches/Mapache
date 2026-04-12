@@ -46,7 +46,7 @@ def _scan_audio(audio_dir: str) -> dict:
     return out
 
 
-def _compute_level_info(dir_name: str) -> dict:
+def _compute_level_info(dir_name: str, known_topic_ids: Optional[set[str]] = None) -> dict:
     info = {
         "id": dir_name,
         "topic_id": None,
@@ -63,7 +63,7 @@ def _compute_level_info(dir_name: str) -> dict:
         "title": "",
     }
 
-    parsed = parse_level_id(dir_name)
+    parsed = parse_level_id(dir_name, known_topic_ids=known_topic_ids)
     if parsed is None:
         info["status"] = ST_INVALID_ID
         return info
@@ -114,9 +114,9 @@ def _compute_level_info(dir_name: str) -> dict:
 
 def compute_state(import_data: Optional[list] = None) -> dict:
     dirs = scan_level_dirs()
-    levels = [_compute_level_info(d) for d in dirs]
-
     topics_known = load_topics()
+    known_topic_ids = {t["id"] for t in topics_known}
+    levels = [_compute_level_info(d, known_topic_ids=known_topic_ids) for d in dirs]
     topics_used = sorted({l["topic_id"] for l in levels if l["topic_id"]})
 
     complete = sum(1 for l in levels if l["status"] == ST_COMPLETE)
