@@ -31,6 +31,8 @@ const MOCK_META = {
   difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const MOCK_PHRASES = [
@@ -233,6 +235,30 @@ describe('scanInstalledLevels', () => {
     await scanInstalledLevels();
 
     expect(getLevelsFromStore()).toHaveLength(0);
+  });
+
+  test('level with mismatched schemaVersion is skipped', async () => {
+    const { _seedFile } = require('expo-file-system/legacy');
+    _seedFile(LEVEL_DIR + 'meta.json', JSON.stringify({ ...MOCK_META, schemaVersion: 0 }));
+    _seedFile(LEVEL_DIR + 'phrases.json', JSON.stringify(MOCK_PHRASES));
+    _seedFile(LEVEL_DIR + 'topic.json', JSON.stringify(MOCK_TOPIC));
+
+    const { scanInstalledLevels, getLevelsFromStore } = require('../src/store/appStore');
+    await scanInstalledLevels();
+
+    expect(getLevelsFromStore()).toHaveLength(0);
+  });
+
+  test('level with correct schemaVersion but different updatedAt is loaded normally', async () => {
+    const { _seedFile } = require('expo-file-system/legacy');
+    _seedFile(LEVEL_DIR + 'meta.json', JSON.stringify({ ...MOCK_META, updatedAt: '2025-06-01T12:00:00' }));
+    _seedFile(LEVEL_DIR + 'phrases.json', JSON.stringify(MOCK_PHRASES));
+    _seedFile(LEVEL_DIR + 'topic.json', JSON.stringify(MOCK_TOPIC));
+
+    const { scanInstalledLevels, getLevelsFromStore } = require('../src/store/appStore');
+    await scanInstalledLevels();
+
+    expect(getLevelsFromStore()).toHaveLength(1);
   });
 });
 

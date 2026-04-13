@@ -73,15 +73,13 @@ def generate_phrases_for_level(
     topics: list[dict],
     n: int = DEFAULT_N_PHRASES,
 ) -> PhrasesResult:
-    """Escribe phrases.json para un level. Idempotente: skip si ya existe."""
+    """Escribe phrases.json para un level. Sobreescribe si ya existe."""
     level_dir = os.path.join(LEVELS_DIR, level_id)
     meta_path = os.path.join(level_dir, "meta.json")
     phrases_path = os.path.join(level_dir, "phrases.json")
 
     if not os.path.isfile(meta_path):
         return PhrasesResult("error", 0, "no se encuentra meta.json")
-    if os.path.isfile(phrases_path):
-        return PhrasesResult("skipped", 0, "phrases.json ya existe")
 
     with open(meta_path, encoding="utf-8") as f:
         meta = json.load(f)
@@ -112,8 +110,10 @@ def generate_phrases_for_level(
             "tip": str(p.get("tip", "")).strip(),
         })
 
-    with open(phrases_path, "w", encoding="utf-8") as f:
+    tmp_path = phrases_path + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as f:
         json.dump(normalized, f, ensure_ascii=False, indent=2)
         f.write("\n")
+    os.replace(tmp_path, phrases_path)  # atómico: solo reemplaza si llega aquí
 
     return PhrasesResult("created", len(normalized), "")

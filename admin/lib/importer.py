@@ -41,7 +41,11 @@ def validate_import_data(import_data: list[dict]) -> list[str]:
             if missing:
                 errors.append(f"topic[{t['id']}].levels[{j}] faltan: {sorted(missing)}")
                 continue
-            key = (t["id"], lv["id"], lv["difficulty"])
+            n = lv.get("n")
+            if n is not None and (not isinstance(n, int) or n < 1):
+                errors.append(f"topic[{t['id']}].levels[{j}] 'n' debe ser entero >= 1")
+                continue
+            key = (t["id"], lv["id"], lv["difficulty"], n)
             if key in seen:
                 errors.append(f"duplicado en import.json: {key}")
             seen.add(key)
@@ -86,10 +90,18 @@ def apply_import(import_data: Optional[list[dict]] = None) -> ImportResult:
         for lv in t["levels"]:
             level_id = lv["id"]
             cefr = lv["difficulty"]
+            n = lv.get("n")  # None = auto (siguiente libre)
             existing_dirs = scan_level_dirs()
-            prefix = f"{topic_id}-{level_id}-{cefr}-"
-            if any(d.startswith(prefix) for d in existing_dirs):
-                continue
+            if n is not None:
+                # Check exacto: solo salta si ese N concreto ya existe
+                exact_id = f"{topic_id}-{level_id}-{cefr}-{n}"
+                if exact_id in existing_dirs:
+                    continue
+            else:
+                # Comportamiento original: salta si existe cualquier batch
+                prefix = f"{topic_id}-{level_id}-{cefr}-"
+                if any(d.startswith(prefix) for d in existing_dirs):
+                    continue
             try:
                 full_id = create_level_dir(
                     topic_id=topic_id,
@@ -99,6 +111,7 @@ def apply_import(import_data: Optional[list[dict]] = None) -> ImportResult:
                     description=lv.get("description", ""),
                     existing_dirs=existing_dirs,
                     prompt=lv.get("prompt", ""),
+                    n=n,
                 )
                 result.levels_created.append(full_id)
             except Exception as e:

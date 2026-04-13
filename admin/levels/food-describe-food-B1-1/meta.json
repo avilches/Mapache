@@ -1,9 +1,0 @@
-{
-  "id": "food-describe-food-B1-1",
-  "topicId": "food",
-  "title": "Describir comida",
-  "description": "Texturas, métodos de cocción y sabores complejos. Recomendar platos con opinión propia.",
-  "difficulty": "B1",
-  "dateAdded": "2026-04-12",
-  "prompt": "Texturas, métodos de cocción, sabores complejos. Vocabulario no cognado: bland, crispy, tender, greasy, overcooked. Recomendaciones con 'you should try'."
-}

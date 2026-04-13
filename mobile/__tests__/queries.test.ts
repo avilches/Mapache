@@ -16,6 +16,8 @@ const MOCK_META_TEST: Record<string, any> = {
   difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const MOCK_META_INTERM: Record<string, any> = {
@@ -25,6 +27,8 @@ const MOCK_META_INTERM: Record<string, any> = {
   difficulty: 'A2',
   dateAdded: '2024-02-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const MOCK_META_OTHER_TOPIC: Record<string, any> = {
@@ -34,6 +38,8 @@ const MOCK_META_OTHER_TOPIC: Record<string, any> = {
   difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const TWO_PHRASES = [

@@ -1,11 +1,16 @@
 """Sincronización con la app móvil: genera ZIPs + actualiza BUNDLED_ZIPS."""
+import datetime
 import json
 import os
-import sys
 import zipfile
 from typing import Optional
 
 from .paths import APP_STORE_TS, ASSETS_LEVELS_OUT, LEVELS_DIR, TOPICS_JSON
+
+# Versión del esquema de datos. Incrementar cuando cambie la estructura de
+# meta.json, topic.json o phrases.json de forma incompatible.
+# Debe coincidir con APP_SCHEMA_VERSION en mobile/src/store/appStore.ts
+SCHEMA_VERSION = 1
 
 
 class SyncResult:
@@ -44,7 +49,17 @@ def _load_level_for_sync(level_id: str, no_audio: bool) -> Optional[dict]:
         if p.get("es") and p.get("en")
     ]
 
-    return {"meta": meta, "phrases": phrases, "mp3s": mp3s}
+    if not phrases:
+        return None
+
+    if not no_audio and len(mp3s) != len(phrases):
+        return None
+
+    all_files = [meta_path, phrases_path] + [os.path.join(audio_dir, m) for m in mp3s]
+    max_mtime = max(os.path.getmtime(f) for f in all_files if os.path.exists(f))
+    updated_at = datetime.datetime.fromtimestamp(max_mtime).isoformat(timespec='seconds')
+
+    return {"meta": meta, "phrases": phrases, "mp3s": mp3s, "updatedAt": updated_at}
 
 
 def _create_level_zip(level: dict, topics_by_id: dict) -> None:
@@ -56,8 +71,15 @@ def _create_level_zip(level: dict, topics_by_id: dict) -> None:
     topic_id = level["meta"].get("topicId", "")
     topic_data = topics_by_id.get(topic_id)
 
+    meta_with_version = {
+        **level["meta"],
+        "schemaVersion": SCHEMA_VERSION,
+        "updatedAt": level["updatedAt"],
+    }
+
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-        zf.write(os.path.join(level_dir, "meta.json"), f"{level_id}/meta.json")
+        zf.writestr(f"{level_id}/meta.json",
+                    json.dumps(meta_with_version, ensure_ascii=False, indent=2).encode("utf-8"))
         zf.writestr(f"{level_id}/phrases.json", phrases_json.encode("utf-8"))
         if topic_data:
             zf.writestr(f"{level_id}/topic.json", json.dumps(topic_data, ensure_ascii=False))
@@ -65,15 +87,17 @@ def _create_level_zip(level: dict, topics_by_id: dict) -> None:
             zf.write(os.path.join(level_dir, "audio", mp3), f"{level_id}/audio/{mp3}")
 
 
-def _generate_bundled_zips_block(level_ids: list[str]) -> str:
-    lines = ["const BUNDLED_ZIPS: Record<string, any> = {"]
-    for lid in level_ids:
-        lines.append(f"  {lid!r}: require('../../assets/levels/{lid}.zip'),")
+def _generate_bundled_zips_block(levels: list[dict]) -> str:
+    lines = ["const BUNDLED_ZIPS: Record<string, { module: any; schemaVersion: number; updatedAt: string }> = {"]
+    for level in levels:
+        lid = level["meta"]["id"]
+        ua = level["updatedAt"]
+        lines.append(f"  {lid!r}: {{ module: require('../../assets/levels/{lid}.zip'), schemaVersion: {SCHEMA_VERSION}, updatedAt: {ua!r} }},")
     lines.append("};")
     return "\n".join(lines)
 
 
-def _update_app_store_ts(level_ids: list[str]) -> None:
+def _update_app_store_ts(levels: list[dict]) -> None:
     with open(APP_STORE_TS, "r", encoding="utf-8") as f:
         content = f.read()
 
@@ -85,7 +109,7 @@ def _update_app_store_ts(level_ids: list[str]) -> None:
     if start == -1 or end == -1:
         raise RuntimeError("No se encontró el bloque BUNDLED_ZIPS en appStore.ts")
 
-    new_block = START_MARKER + "\n" + _generate_bundled_zips_block(level_ids) + "\n" + END_MARKER
+    new_block = START_MARKER + "\n" + _generate_bundled_zips_block(levels) + "\n" + END_MARKER
     new_content = content[:start] + new_block + content[end + len(END_MARKER):]
 
     with open(APP_STORE_TS, "w", encoding="utf-8") as f:
@@ -127,7 +151,7 @@ def sync_mobile(
     for level_id in candidate_level_ids:
         level = _load_level_for_sync(level_id, no_audio=no_audio)
         if level is None:
-            result.skipped.append((level_id, "falta meta/phrases o sin audio"))
+            result.skipped.append((level_id, "incompleto (falta meta/frases o audio parcial/ausente)"))
             continue
         loaded.append(level)
 
@@ -146,7 +170,7 @@ def sync_mobile(
                     pass
 
     try:
-        _update_app_store_ts(result.synced)
+        _update_app_store_ts(loaded)
     except RuntimeError as e:
         result.error = str(e)
 

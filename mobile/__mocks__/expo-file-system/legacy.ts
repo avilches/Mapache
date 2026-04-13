@@ -50,8 +50,11 @@ export async function getInfoAsync(path: string): Promise<{ exists: boolean }> {
   return { exists: fs.has(path) };
 }
 
-export async function deleteAsync(_path: string, _opts?: any): Promise<void> {
-  // no-op in mock
+export async function deleteAsync(path: string, _opts?: any): Promise<void> {
+  const prefix = path.endsWith('/') ? path : path + '/';
+  for (const key of Array.from(fs.keys())) {
+    if (key === path || key.startsWith(prefix)) fs.delete(key);
+  }
 }
 
 export const cacheDirectory = 'file:///mock-cache/';

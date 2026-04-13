@@ -3,17 +3,17 @@
 admin.py — entrypoint único de mantenimiento para admin/.
 
 Muestra el estado del sistema y ofrece acciones idempotentes:
-  1. Importar levels desde import.json
-  2. Crear level nuevo (interactivo)
-  3. Generar frases faltantes
-  4. Generar audio faltante
-  5. Sync mobile (ZIPs + BUNDLED_ZIPS)
-  6. Validar (invoca validate_levels.py)
+  1. Crear level nuevo (interactivo)
+  2. Generar frases faltantes  ← también crea el directorio si viene de import.json
+  3. Generar audio faltante
+  4. Sync mobile (ZIPs + BUNDLED_ZIPS)
+  5. Validar (invoca validate_levels.py)
 
 Uso: python3 admin/admin.py
 Requiere: pip install -r requirements.txt y el binario `claude` en PATH (para
           generación de frases y sugerencia de icon/color de topics nuevos).
 """
+import json
 import os
 import re
 import subprocess
@@ -29,11 +29,12 @@ sys.path.insert(0, _HERE)
 
 from lib import state as st_mod  # noqa: E402
 from lib.audio import generate_audio_for_level  # noqa: E402
-from lib.importer import apply_import, load_import_json  # noqa: E402
+from lib.importer import load_import_json  # noqa: E402
 from lib.levels import create_level_dir, scan_level_dirs  # noqa: E402
 from lib.paths import (  # noqa: E402
     CEFR_LEVELS,
     IMPORT_JSON,
+    LEVELS_DIR,
     SOLARIZED_PALETTE,
     VALIDATE_SCRIPT,
 )
@@ -93,11 +94,9 @@ def print_state(state: dict) -> None:
 
     topics_known = state["topics"]["known"]
     topics_used = state["topics"]["used_by_levels"]
-    topics_unused = sorted(set(topics_known) - set(topics_used))
     console.print(
         f"[dim]topics.json:[/dim] {len(topics_known)}  "
-        f"[dim]usados:[/dim] {len(topics_used)}  "
-        f"[dim]sin levels:[/dim] {len(topics_unused)}"
+        f"[dim]usados:[/dim] {len(topics_used)}"
     )
 
     if state["import_diff"] is not None:
@@ -111,6 +110,7 @@ def print_state(state: dict) -> None:
 
     if state["levels"]:
         table = Table(show_header=True, header_style="bold", box=None, padding=(0, 1))
+        table.add_column("topic")
         table.add_column("id")
         table.add_column("frases", justify="right")
         table.add_column("mp3", justify="right")
@@ -123,6 +123,7 @@ def print_state(state: dict) -> None:
             if lv["orphan_mp3s"]:
                 status_text += f" [huérfanos: {len(lv['orphan_mp3s'])}]"
             table.add_row(
+                lv["topic_id"] or "",
                 lv["id"],
                 str(lv["phrase_count"]),
                 str(lv["mp3_count"]),
@@ -132,40 +133,6 @@ def print_state(state: dict) -> None:
     else:
         console.print("[dim](no hay levels en admin/levels/)[/dim]")
     console.print()
-
-
-# ── action: import ──────────────────────────────────────────────────────────
-
-def action_import(state: dict) -> None:
-    diff = state["import_diff"]
-    if diff is None:
-        console.print("[yellow]No hay import.json.[/yellow]")
-        return
-
-    if not diff["topics_to_create"] and not diff["levels_to_create"]:
-        console.print("[green]Nada que importar: todo está al día.[/green]")
-        return
-
-    console.print(f"[bold]Se crearán:[/bold]")
-    console.print(f"  topics: {len(diff['topics_to_create'])}")
-    for t in diff["topics_to_create"]:
-        console.print(f"    + {t['id']}  ({t['title']})")
-    console.print(f"  levels: {len(diff['levels_to_create'])}")
-    for lv in diff["levels_to_create"][:20]:
-        console.print(f"    + {lv['topic_id']}-{lv['level_id']}-{lv['cefr']}  ({lv['title']})")
-    if len(diff["levels_to_create"]) > 20:
-        console.print(f"    … y {len(diff['levels_to_create']) - 20} más")
-
-    if not questionary.confirm("¿Confirmar?", default=True).ask():
-        return
-
-    result = apply_import()
-    console.print(
-        f"[green]✓[/green] topics creados: {len(result.topics_created)}, "
-        f"levels creados: {len(result.levels_created)}"
-    )
-    for e in result.errors:
-        console.print(f"  [red]✗[/red] {e}")
 
 
 # ── action: create level interactively ─────────────────────────────────────
@@ -320,19 +287,57 @@ def action_create_level() -> None:
 # ── action: generate phrases ────────────────────────────────────────────────
 
 def action_generate_phrases(state: dict) -> None:
-    pending = [lv for lv in state["levels"] if lv["status"] == st_mod.ST_NO_PHRASES]
-    if not pending:
-        console.print("[green]No hay levels sin frases.[/green]")
+    # Levels existentes en disco sin phrases.json
+    existing_pending = [lv for lv in state["levels"] if lv["status"] == st_mod.ST_NO_PHRASES]
+    # Levels de import.json que aún no existen en disco
+    import_pending = state["import_diff"]["levels_to_create"] if state["import_diff"] else []
+
+    if not existing_pending and not import_pending:
+        console.print("[green]No hay levels pendientes de frases.[/green]")
         return
 
-    choices = [
-        questionary.Choice(
-            title=f"{lv['id']}  — {lv['title']}",
-            value=lv["id"],
-            checked=True,
+    # Filtro CEFR (pre-selección en el checkbox)
+    all_cefrs = sorted(
+        {lv["cefr"] for lv in existing_pending if lv.get("cefr")}
+        | {lv["cefr"] for lv in import_pending if lv.get("cefr")}
+    )
+    preselected_existing: set[str] = set()
+    preselected_import: set[tuple] = set()
+    if len(all_cefrs) > 1:
+        filter_choices = (
+            [questionary.Choice(title="Todos", value="__all__")]
+            + [questionary.Choice(title=c, value=c) for c in all_cefrs]
         )
-        for lv in pending
-    ]
+        cefr_filter = questionary.select(
+            "Filtrar por dificultad (pre-selecciona el grupo en el checkbox):",
+            choices=filter_choices,
+        ).ask()
+        if cefr_filter is None:
+            return
+        if cefr_filter != "__all__":
+            preselected_existing = {lv["id"] for lv in existing_pending if lv["cefr"] == cefr_filter}
+            preselected_import = {
+                (lv["topic_id"], lv["level_id"], lv["cefr"])
+                for lv in import_pending if lv["cefr"] == cefr_filter
+            }
+
+    choices = []
+    for lv in existing_pending:
+        checked = (lv["id"] in preselected_existing) if preselected_existing else True
+        choices.append(questionary.Choice(
+            title=f"{lv['id']}  — {lv['title']}",
+            value={"source": "existing", "id": lv["id"]},
+            checked=checked,
+        ))
+    for lv in import_pending:
+        key = (lv["topic_id"], lv["level_id"], lv["cefr"])
+        checked = (key in preselected_import) if preselected_import else True
+        choices.append(questionary.Choice(
+            title=f"{lv['topic_id']}-{lv['level_id']}-{lv['cefr']}  — {lv['title']}  [nuevo]",
+            value={"source": "import", "data": lv},
+            checked=checked,
+        ))
+
     selected = questionary.checkbox(
         f"Selecciona levels para generar frases (N={DEFAULT_N_PHRASES} por level):",
         choices=choices,
@@ -341,7 +346,56 @@ def action_generate_phrases(state: dict) -> None:
         return
 
     topics = load_topics()
-    for level_id in selected:
+    existing_topic_ids = {t["id"] for t in topics}
+
+    for item in selected:
+        if item["source"] == "existing":
+            level_id = item["id"]
+        else:
+            lv = item["data"]
+            # Crear topic si aún no existe
+            if lv["topic_id"] not in existing_topic_ids:
+                topic_data = next(
+                    (t for t in state["import_diff"]["topics_to_create"] if t["id"] == lv["topic_id"]),
+                    None,
+                )
+                if not topic_data:
+                    console.print(f"  [red]✗[/red] Topic '{lv['topic_id']}' no encontrado")
+                    continue
+                topics.append(topic_data)
+                save_topics(topics)
+                existing_topic_ids.add(lv["topic_id"])
+                console.print(f"  [green]✓[/green] Topic '{lv['topic_id']}' creado")
+            # Crear directorio del level
+            try:
+                existing_dirs = scan_level_dirs()
+                level_id = create_level_dir(
+                    topic_id=lv["topic_id"],
+                    level_id=lv["level_id"],
+                    cefr=lv["cefr"],
+                    title=lv["title"],
+                    description=lv.get("description", ""),
+                    existing_dirs=existing_dirs,
+                    prompt=lv.get("prompt", ""),
+                    n=lv.get("n"),
+                )
+                console.print(f"  [green]✓[/green] Directorio creado: {level_id}")
+            except FileExistsError:
+                existing_dirs = scan_level_dirs()
+                n = lv.get("n")
+                if n:
+                    level_id = f"{lv['topic_id']}-{lv['level_id']}-{lv['cefr']}-{n}"
+                else:
+                    prefix = f"{lv['topic_id']}-{lv['level_id']}-{lv['cefr']}-"
+                    matches = [d for d in existing_dirs if d.startswith(prefix)]
+                    level_id = matches[0] if matches else None
+                if not level_id:
+                    console.print(f"  [red]✗[/red] No se pudo determinar el id del level")
+                    continue
+            except Exception as e:
+                console.print(f"  [red]✗[/red] Error creando directorio: {e}")
+                continue
+
         res = generate_phrases_for_level(level_id, topics, n=DEFAULT_N_PHRASES)
         if res.status == "created":
             console.print(f"  [green]✓[/green] {level_id}: {res.count} frases")
@@ -426,13 +480,270 @@ def action_validate() -> None:
     subprocess.run([sys.executable, VALIDATE_SCRIPT])
 
 
+# ── action: browse ──────────────────────────────────────────────────────────
+
+_BACK = "__back__"   # sentinel para opciones "Volver" en questionary
+
+
+def _delete_audio_dir(level_id: str) -> None:
+    """Borra todos los mp3 del directorio audio/ de un level."""
+    import glob as _glob
+    audio_dir = os.path.join(LEVELS_DIR, level_id, "audio")
+    for mp3 in _glob.glob(os.path.join(audio_dir, "*.mp3")):
+        os.remove(mp3)
+
+
+def _disk_status_badge(lv: dict) -> str:
+    """Símbolo de estado en disco (sin ANSI, questionary no los soporta)."""
+    s = lv["status"]
+    if s == st_mod.ST_COMPLETE:
+        return "✓  completo"
+    if s == st_mod.ST_NO_PHRASES:
+        return "⚠  sin frases"
+    if s == st_mod.ST_AUDIO_PARTIAL:
+        return f"⚠  falta {len(lv['missing_audio_indices'])} mp3"
+    if s == st_mod.ST_AUDIO_ORPHANS:
+        return "◈  mp3 huérfanos"
+    if s == st_mod.ST_NO_META:
+        return "✗  sin meta"
+    return "✗  id inválido"
+
+
+def _browse_phrases(lv: dict) -> None:
+    """Muestra las frases del level y permite escuchar los audios."""
+    level_id = lv["id"]
+    phrases_path = os.path.join(LEVELS_DIR, level_id, "phrases.json")
+    audio_dir = os.path.join(LEVELS_DIR, level_id, "audio")
+
+    with open(phrases_path, encoding="utf-8") as f:
+        phrases = json.load(f)
+
+    console.print()
+    for i, p in enumerate(phrases, 1):
+        console.print(f"  [bold]{i:2d}.[/bold]  {p.get('es', '')}")
+        console.print(f"       [dim]{p.get('en', '')}[/dim]")
+    console.print()
+
+    # Si no hay audios, sólo se mostraban las frases
+    mp3_available = {
+        int(f[:-4])
+        for f in os.listdir(audio_dir)
+        if f.endswith(".mp3") and f[:-4].isdigit()
+    } if os.path.isdir(audio_dir) else set()
+
+    if not mp3_available:
+        questionary.press_any_key_to_continue("(no hay audio — pulsa cualquier tecla)").ask()
+        return
+
+    choices = [
+        questionary.Choice(
+            title=(
+                f"{'▶' if i in mp3_available else ' '} {i:2d}.  "
+                f"{phrases[i-1].get('es', '')}"
+            ),
+            value=i,
+        )
+        for i in range(1, len(phrases) + 1)
+    ] + [questionary.Choice(title="← Volver", value=_BACK)]
+
+    while True:
+        try:
+            sel = questionary.select(
+                "Escuchar (▶ = tiene audio):",
+                choices=choices,
+            ).unsafe_ask()
+        except KeyboardInterrupt:
+            return
+        if not sel or sel == _BACK:
+            return
+
+        mp3 = os.path.join(audio_dir, f"{sel:03d}.mp3")
+        if os.path.isfile(mp3):
+            p = phrases[sel - 1]
+            console.print(f"  [bold]{p.get('es', '')}[/bold]")
+            console.print(f"  [dim]{p.get('en', '')}[/dim]")
+            subprocess.run(["afplay", mp3], check=False)
+        else:
+            console.print(f"  [yellow]No hay audio para la frase {sel}[/yellow]")
+
+
+def _browse_level_actions(lv: dict) -> None:
+    """Submenú de acciones para un level que existe en disco."""
+    level_id = lv["id"]
+    s = lv["status"]
+    color = "green" if s == st_mod.ST_COMPLETE else ("red" if s in (st_mod.ST_NO_META, st_mod.ST_INVALID_ID) else "yellow")
+    console.print(
+        f"\n  [{color}]{_disk_status_badge(lv)}[/{color}]  [bold]{level_id}[/bold]  "
+        f"[dim]{lv['phrase_count']} frases · {lv['mp3_count']} mp3[/dim]"
+    )
+
+    mp3_count = lv["mp3_count"]
+    if mp3_count:
+        phrases_label = f"Generar frases  ⚠ borrará {mp3_count} mp3"
+    else:
+        phrases_label = "Generar frases"
+
+    choices = []
+    if lv["has_phrases"]:
+        choices.append(questionary.Choice(title="Ver y escuchar frases", value="view"))
+    choices.append(questionary.Choice(title=phrases_label, value="phrases"))
+    if lv["has_phrases"]:
+        choices.append(questionary.Choice(title="Generar audio faltante", value="audio"))
+    choices.append(questionary.Choice(title="Cancelar", value=_BACK))
+
+    try:
+        action = questionary.select("Accion:", choices=choices).unsafe_ask()
+    except KeyboardInterrupt:
+        return
+    if not action or action == _BACK:
+        return
+
+    topics = load_topics()
+    if action == "view":
+        _browse_phrases(lv)
+    elif action == "phrases":
+        res = generate_phrases_for_level(level_id, topics, n=DEFAULT_N_PHRASES)
+        if res.status == "created":
+            console.print(f"  [green]✓[/green] {level_id}: {res.count} frases generadas")
+            if mp3_count:
+                _delete_audio_dir(level_id)
+                console.print(f"  [yellow]✗ {mp3_count} mp3 borrados[/yellow]")
+        else:
+            console.print(f"  [red]✗[/red] {level_id}: {res.message}")
+    elif action == "audio":
+        console.print(f"[cyan]→[/cyan] {level_id}")
+
+        def _on_progress(i, total, text, skipped):
+            if skipped:
+                console.print(f"  [dim]{i:3d}/{total}  (skip)  {text}[/dim]")
+            else:
+                console.print(f"  [green]{i:3d}/{total}[/green]  {text}")
+
+        res = generate_audio_for_level(level_id, on_progress=_on_progress)
+        if res.error:
+            console.print(f"  [red]✗[/red] {res.error}")
+        else:
+            console.print(
+                f"  [green]✓ {len(res.generated)} generados[/green], "
+                f"{len(res.skipped)} saltados"
+                + (f", [magenta]{len(res.orphan_mp3s)} huérfanos[/magenta]" if res.orphan_mp3s else "")
+            )
+
+
+def _reload_disk_state() -> dict[str, dict]:
+    """Devuelve índice {level_full_id: level_info} del estado actual en disco."""
+    import_data = _load_import_safe()
+    s = st_mod.compute_state(import_data=import_data)
+    return {lv["id"]: lv for lv in s["levels"]}
+
+
+def action_browse(_state: dict) -> None:
+    """Navegador por topics/levels de import.json cruzado con estado en disco."""
+    import_data = _load_import_safe()
+    if not import_data:
+        console.print("[yellow]No se pudo leer import.json[/yellow]")
+        return
+
+    # ── nivel 1: lista de topics ────────────────────────────────────────────
+    while True:
+        disk = _reload_disk_state()
+
+        topic_choices = []
+        for t in import_data:
+            tid = t["id"]
+            lvs = t.get("levels", [])
+            total = len(lvs)
+            complete = 0
+            for lv_def in lvs:
+                prefix = f"{tid}-{lv_def['id']}-{lv_def['difficulty']}-"
+                if any(disk[fid]["status"] == st_mod.ST_COMPLETE for fid in disk if fid.startswith(prefix)):
+                    complete += 1
+            mark = "✓" if complete == total else f"{complete}/{total}"
+            label = f"{mark:6s}  {tid}  ({t['title']})"
+            topic_choices.append(questionary.Choice(title=label, value=tid))
+
+        topic_choices.append(questionary.Choice(title="← Volver al menu", value=_BACK))
+
+        console.print()
+        try:
+            sel_topic = questionary.select(
+                "Browse — elige topic:",
+                choices=topic_choices,
+            ).unsafe_ask()
+        except KeyboardInterrupt:
+            return
+        if not sel_topic or sel_topic == _BACK:
+            return
+
+        topic_data = next(t for t in import_data if t["id"] == sel_topic)
+
+        # ── nivel 2: lista de levels del topic ──────────────────────────────
+        while True:
+            disk = _reload_disk_state()
+            lvs_def = topic_data.get("levels", [])
+
+            total = len(lvs_def)
+            complete = sum(
+                1 for lv_def in lvs_def
+                if any(
+                    disk[fid]["status"] == st_mod.ST_COMPLETE
+                    for fid in disk
+                    if fid.startswith(f"{sel_topic}-{lv_def['id']}-{lv_def['difficulty']}-")
+                )
+            )
+            color = "green" if complete == total else "yellow"
+            console.print(
+                f"\n  [bold]{sel_topic}[/bold]  [dim]{topic_data['title']}[/dim]  "
+                f"[{color}]{complete}/{total} completos[/{color}]"
+            )
+
+            level_choices = []
+            for lv_def in lvs_def:
+                prefix = f"{sel_topic}-{lv_def['id']}-{lv_def['difficulty']}-"
+                matches = sorted(fid for fid in disk if fid.startswith(prefix))
+                if not matches:
+                    val = _BACK  # no hay nada que hacer; skip acción
+                    label = f"{'—':8s}  {prefix}?  {lv_def['title']}"
+                else:
+                    fid = matches[0]
+                    lv_data = disk[fid]
+                    pc = lv_data["phrase_count"]
+                    mc = lv_data["mp3_count"]
+                    is_complete = lv_data["status"] == st_mod.ST_COMPLETE
+                    mark = "✓" if is_complete else " "
+                    count_str = f"{mark} {pc:2d}fr/{mc:2d}mp3"
+                    val = fid
+                    label = f"{count_str}  {fid}"
+                level_choices.append(questionary.Choice(title=label, value=val))
+
+            level_choices.append(questionary.Choice(title="← Volver a topics", value=_BACK))
+
+            try:
+                sel_level = questionary.select(
+                    "Elige level:",
+                    choices=level_choices,
+                ).unsafe_ask()
+            except KeyboardInterrupt:
+                break  # vuelve a topics
+            if not sel_level or sel_level == _BACK:
+                break  # vuelve a topics
+
+            lv_info = disk.get(sel_level)
+            if not lv_info:
+                continue
+
+            try:
+                _browse_level_actions(lv_info)
+            except KeyboardInterrupt:
+                console.print("\n[yellow]Accion cancelada.[/yellow]")
+            console.print()
+
+
 # ── main loop ───────────────────────────────────────────────────────────────
 
 ACTIONS = [
-    ("Importar levels desde import.json", "import"),
+    ("Browse (explorar topics y levels)", "browse"),
     ("Crear level nuevo (interactivo)", "create"),
-    ("Generar frases faltantes", "phrases"),
-    ("Generar audio faltante", "audio"),
     ("Sync mobile (ZIPs + BUNDLED_ZIPS)", "sync"),
     ("Validar (validate_levels.py)", "validate"),
     ("Salir", "exit"),
@@ -455,14 +766,10 @@ def main() -> int:
             return 0
 
         try:
-            if choice == "import":
-                action_import(state)
+            if choice == "browse":
+                action_browse(state)
             elif choice == "create":
                 action_create_level()
-            elif choice == "phrases":
-                action_generate_phrases(state)
-            elif choice == "audio":
-                action_generate_audio(state)
             elif choice == "sync":
                 action_sync(state)
             elif choice == "validate":

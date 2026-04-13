@@ -20,18 +20,27 @@ litellm.suppress_debug_info = True
 
 
 def call_claude(prompt: str, status_msg: str) -> str:
-    """Llama al modelo configurado en MODEL (env) y devuelve el texto."""
+    """Llama al modelo configurado en MODEL (env) y devuelve el texto (streaming)."""
     model = os.environ.get("PHRASES_MODEL", DEFAULT_MODEL)
-    with _console.status(f"[cyan]{status_msg}[/cyan]  [dim]({model})[/dim]"):
-        try:
-            response = litellm.completion(
-                model=model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.7,
-            )
-        except Exception as e:
-            raise RuntimeError(f"LLM error ({model}): {e}") from e
-    return response.choices[0].message.content.strip()
+    _console.print(f"[cyan]{status_msg}[/cyan]  [dim]({model})[/dim]")
+    try:
+        response = litellm.completion(
+            model=model,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.7,
+            stream=True,
+        )
+    except Exception as e:
+        raise RuntimeError(f"LLM error ({model}): {e}") from e
+
+    chunks = []
+    for chunk in response:
+        delta = chunk.choices[0].delta.content or ""
+        if delta:
+            print(delta, end="", flush=True)
+            chunks.append(delta)
+    print()  # newline al terminar
+    return "".join(chunks).strip()
 
 
 def extract_json(raw: str):

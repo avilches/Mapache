@@ -114,18 +114,20 @@ def create_level_dir(
     description: str,
     existing_dirs: Optional[list[str]] = None,
     prompt: str = "",
+    n: Optional[int] = None,
 ) -> str:
     """Crea admin/levels/<id>/meta.json y devuelve el id completo generado.
 
-    Idempotencia: el caller comprueba antes si un prefijo ya existe y decide
-    si llamar o no. Esta función siempre crea un directorio nuevo con el
-    siguiente N libre.
+    Idempotencia: el caller comprueba antes si el directorio ya existe y decide
+    si llamar o no. Si n se proporciona, se usa ese valor; si no, se calcula
+    el siguiente N libre.
     """
     if cefr not in CEFR_LEVELS:
         raise ValueError(f"CEFR inválido: {cefr}")
 
     existing_dirs = existing_dirs if existing_dirs is not None else scan_level_dirs()
-    n = next_level_number(topic_id, level_id, cefr, existing_dirs)
+    if n is None:
+        n = next_level_number(topic_id, level_id, cefr, existing_dirs)
     full_id = build_level_id(topic_id, level_id, cefr, n)
     level_dir = os.path.join(LEVELS_DIR, full_id)
 

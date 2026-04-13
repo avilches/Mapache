@@ -14,19 +14,31 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import threading
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import Optional
 
+import questionary
 from gtts import gTTS
 from rich.align import Align
+from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Container
 from textual.widgets import Footer, Static
+
+_HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _HERE)
+
+from lib import state as st_mod  # noqa: E402
+from lib.paths import LEVELS_DIR  # noqa: E402
+from lib.topics import load_topics  # noqa: E402
+
+_console = Console()
 
 COUNTDOWN_SECONDS = 5.0
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "audio_cache")
@@ -362,7 +374,61 @@ def start_learning(file_path: str) -> None:
         print("\n¡Sesión terminada! Good job! 👏")
 
 
+def select_level_interactive() -> Optional[str]:
+    """Selector topic → level. Devuelve la ruta a phrases.json o None si se cancela."""
+    state = st_mod.compute_state()
+    levels_with_phrases = [lv for lv in state["levels"] if lv["has_phrases"]]
+    if not levels_with_phrases:
+        _console.print("[yellow]No hay levels con frases disponibles.[/yellow]")
+        return None
+
+    topics = load_topics()
+    topic_map = {t["id"]: t for t in topics}
+
+    # Agrupar levels por topic
+    by_topic: dict[str, list[dict]] = {}
+    for lv in levels_with_phrases:
+        tid = lv["topic_id"] or "__sin_topic__"
+        by_topic.setdefault(tid, []).append(lv)
+
+    # Selector de topic
+    topic_choices = []
+    for tid, lvs in sorted(by_topic.items()):
+        title = topic_map[tid]["title"] if tid in topic_map else tid
+        complete = sum(1 for l in lvs if l["status"] == st_mod.ST_COMPLETE)
+        label = f"{title}  [{complete}/{len(lvs)}]"
+        topic_choices.append(questionary.Choice(title=label, value=tid))
+
+    try:
+        sel_topic = questionary.select("Elige topic:", choices=topic_choices).unsafe_ask()
+    except KeyboardInterrupt:
+        return None
+    if not sel_topic:
+        return None
+
+    # Selector de level
+    lvs = sorted(by_topic[sel_topic], key=lambda l: l["id"])
+    level_choices = []
+    for lv in lvs:
+        badge = "✓" if lv["status"] == st_mod.ST_COMPLETE else "⚠"
+        label = f"{badge}  {lv['id']}  — {lv['title']}  ({lv['phrase_count']} frases)"
+        level_choices.append(questionary.Choice(title=label, value=lv["id"]))
+
+    try:
+        sel_level = questionary.select("Elige level:", choices=level_choices).unsafe_ask()
+    except KeyboardInterrupt:
+        return None
+    if not sel_level:
+        return None
+
+    return os.path.join(LEVELS_DIR, sel_level, "phrases.json")
+
+
 if __name__ == "__main__":
-    import sys
-    file_path = sys.argv[1] if len(sys.argv) > 1 else os.path.join(os.path.dirname(__file__), "levels", "greetings-A1-1", "phrases.json")
+    if len(sys.argv) > 1:
+        file_path = sys.argv[1]
+    else:
+        file_path = select_level_interactive()
+        if file_path is None:
+            sys.exit(0)
     start_learning(file_path)

@@ -39,7 +39,7 @@ PACK_NAME_RE = re.compile(
     r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(?:A1|A2|B1|B2|C1|C2)-\d+$"
 )
 BUNDLED_ZIPS_RE = re.compile(
-    r"const BUNDLED_ZIPS[^{]*\{([^}]*)\}", re.DOTALL
+    r"// ─── BUNDLED ZIPS.*?// ─── END BUNDLED ZIPS", re.DOTALL
 )
 BUNDLED_ENTRY_RE = re.compile(r"'([^']+)'\s*:")
 
@@ -68,8 +68,9 @@ def parse_bundled_zips(ts_source: str) -> list[str]:
     m = BUNDLED_ZIPS_RE.search(ts_source)
     if not m:
         return []
-    block = m.group(1)
-    return BUNDLED_ENTRY_RE.findall(block)
+    block = m.group(0)
+    # Filtra las claves que sean IDs de level (formato kebab-case con CEFR y número)
+    return [k for k in BUNDLED_ENTRY_RE.findall(block) if not k.startswith('/')]
 
 
 # ─── Validación topics.json ───────────────────────────────────────────────────
@@ -372,11 +373,65 @@ def validate_consistency(
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+def _cleanup_orphan_topics() -> list[str]:
+    """Elimina de topics.json los topics sin levels en disco. Devuelve ids eliminados."""
+    if not os.path.isfile(TOPICS_JSON):
+        return []
+    try:
+        with open(TOPICS_JSON, encoding="utf-8") as f:
+            topics = json.load(f)
+        if not isinstance(topics, list):
+            return []
+    except Exception:
+        return []
+
+    # Solo topics con al menos un level completo (frases + todos los mp3)
+    complete_topic_ids: set[str] = set()
+    if os.path.isdir(PACKS_DIR):
+        for d in os.listdir(PACKS_DIR):
+            pack_path = os.path.join(PACKS_DIR, d)
+            meta_path = os.path.join(pack_path, "meta.json")
+            phrases_path = os.path.join(pack_path, "phrases.json")
+            audio_dir = os.path.join(pack_path, "audio")
+            if not os.path.isfile(meta_path) or not os.path.isfile(phrases_path):
+                continue
+            try:
+                with open(meta_path, encoding="utf-8") as f:
+                    meta = json.load(f)
+                tid = meta.get("topicId", "")
+                if not tid:
+                    continue
+                with open(phrases_path, encoding="utf-8") as f:
+                    phrases = json.load(f)
+                phrase_count = len([p for p in phrases if isinstance(p, dict) and p.get("es") and p.get("en")])
+                if phrase_count == 0:
+                    continue
+                mp3_count = len([f for f in os.listdir(audio_dir) if f.endswith(".mp3")]) if os.path.isdir(audio_dir) else 0
+                if mp3_count == phrase_count:
+                    complete_topic_ids.add(tid)
+            except Exception:
+                pass
+    used_topic_ids = complete_topic_ids
+
+    kept = [t for t in topics if t.get("id") in used_topic_ids]
+    removed = [t["id"] for t in topics if t.get("id") not in used_topic_ids]
+    if removed:
+        with open(TOPICS_JSON, "w", encoding="utf-8") as f:
+            json.dump(kept, f, ensure_ascii=False, indent=2)
+            f.write("\n")
+    return removed
+
+
 def main() -> int:
     print("Validando levels...\n")
     total_errors = 0
 
-    # 0. topics.json
+    # 0a. Limpiar topics.json (eliminar topics sin levels)
+    removed_topics = _cleanup_orphan_topics()
+    if removed_topics:
+        print(f"topics.json limpiado: eliminados {len(removed_topics)} topics sin levels: {', '.join(removed_topics)}\n")
+
+    # 0b. topics.json
     valid_topic_ids, topics_errors = validate_topics_json()
     print(f"topics.json ({len(valid_topic_ids)} topics):")
     if topics_errors:

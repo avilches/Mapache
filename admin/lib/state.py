@@ -9,7 +9,7 @@ from typing import Optional
 
 from .levels import parse_level_id, scan_level_dirs
 from .paths import LEVELS_DIR
-from .topics import load_topics
+from .topics import load_topics, rebuild_topics_from_sources
 
 
 # status values
@@ -113,10 +113,16 @@ def _compute_level_info(dir_name: str, known_topic_ids: Optional[set[str]] = Non
 
 
 def compute_state(import_data: Optional[list] = None) -> dict:
+    # Reconstruir topics.json desde import.json y meta.json antes de parsear IDs
+    rebuild_topics_from_sources(import_data, LEVELS_DIR)
+
     dirs = scan_level_dirs()
     topics_known = load_topics()
     known_topic_ids = {t["id"] for t in topics_known}
-    levels = [_compute_level_info(d, known_topic_ids=known_topic_ids) for d in dirs]
+    levels = sorted(
+        [_compute_level_info(d, known_topic_ids=known_topic_ids) for d in dirs],
+        key=lambda l: l["id"],
+    )
     topics_used = sorted({l["topic_id"] for l in levels if l["topic_id"]})
 
     complete = sum(1 for l in levels if l["status"] == ST_COMPLETE)
@@ -158,8 +164,14 @@ def _compute_import_diff(import_data: list, existing_topics: list[dict], existin
         for lv in t.get("levels", []):
             level_id = lv["id"]
             cefr = lv["difficulty"]
-            prefix = f"{topic_id}-{level_id}-{cefr}-"
-            if any(d.startswith(prefix) for d in existing_dirs):
+            n = lv.get("n")
+            if n is not None:
+                exact_id = f"{topic_id}-{level_id}-{cefr}-{n}"
+                already_exists = exact_id in existing_dirs
+            else:
+                prefix = f"{topic_id}-{level_id}-{cefr}-"
+                already_exists = any(d.startswith(prefix) for d in existing_dirs)
+            if already_exists:
                 levels_already_ok += 1
                 continue
             levels_to_create.append({
@@ -168,7 +180,11 @@ def _compute_import_diff(import_data: list, existing_topics: list[dict], existin
                 "cefr": cefr,
                 "title": lv["title"],
                 "description": lv.get("description", ""),
+                "prompt": lv.get("prompt", ""),
+                "n": n,
             })
+
+    levels_to_create.sort(key=lambda l: f"{l['topic_id']}-{l['level_id']}-{l['cefr']}")
 
     return {
         "topics_to_create": topics_to_create,

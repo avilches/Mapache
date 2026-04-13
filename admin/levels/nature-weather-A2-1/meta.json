@@ -1,9 +1,0 @@
-{
-  "id": "nature-weather-A2-1",
-  "topicId": "nature",
-  "title": "Tiempo y clima",
-  "description": "Describir el tiempo de hoy con palabras que no son las obvias: no solo hot o cold, sino chilly, muggy, overcast.",
-  "difficulty": "A2",
-  "dateAdded": "2026-04-12",
-  "prompt": "Describir el tiempo de hoy, preguntar el pronóstico. Foco en vocabulario no cognado: chilly, muggy, overcast, drizzle, breeze. Evitar 'caluroso'→'hot' como único adjetivo."
-}

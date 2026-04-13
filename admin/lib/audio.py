@@ -9,7 +9,12 @@ Idempotente: sólo genera los mp3 que faltan. No borra huérfanos (los reporta).
 import json
 import os
 
+from dotenv import load_dotenv
+
 from .paths import LEVELS_DIR
+
+_HERE = os.path.dirname(__file__)
+load_dotenv(os.path.join(_HERE, os.pardir, ".env"))
 
 
 class AudioResult:
@@ -53,7 +58,11 @@ def _generate_with_gtts(text: str, filepath: str) -> None:
     tts.save(filepath)
 
 
-def generate_audio_for_level(level_id: str) -> AudioResult:
+def generate_audio_for_level(level_id: str, on_progress=None) -> AudioResult:
+    """Genera los mp3 que faltan.
+
+    on_progress(i, total, text, skipped) se llama tras cada frase procesada.
+    """
     result = AudioResult()
     level_dir = os.path.join(LEVELS_DIR, level_id)
     phrases_path = os.path.join(level_dir, "phrases.json")
@@ -70,18 +79,23 @@ def generate_audio_for_level(level_id: str) -> AudioResult:
 
     use_openai = bool(os.environ.get("OPENAI_API_KEY"))
     os.makedirs(audio_dir, exist_ok=True)
+    total = len(phrases)
 
     for i, text in enumerate(phrases, start=1):
         filename = f"{i:03d}.mp3"
         filepath = os.path.join(audio_dir, filename)
         if os.path.exists(filepath):
             result.skipped.append(i)
+            if on_progress:
+                on_progress(i, total, text, skipped=True)
             continue
         if use_openai:
             _generate_with_openai(text, filepath)
         else:
             _generate_with_gtts(text, filepath)
         result.generated.append(i)
+        if on_progress:
+            on_progress(i, total, text, skipped=False)
 
     # huérfanos: mp3 con índice > len(phrases)
     if os.path.isdir(audio_dir):

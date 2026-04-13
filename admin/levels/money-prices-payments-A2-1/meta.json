@@ -1,9 +1,0 @@
-{
-  "id": "money-prices-payments-A2-1",
-  "topicId": "money",
-  "title": "Precios y pagos",
-  "description": "Preguntar cuánto cuesta, pagar, dar cambio y dividir una cuenta. Lo esencial para manejar dinero.",
-  "difficulty": "A2",
-  "dateAdded": "2026-04-12",
-  "prompt": "Preguntar el precio, pagar, dar cambio, dividir una cuenta. Foco en 'how much', 'split', 'owe', 'charge'. Sin cognados como 'total'."
-}

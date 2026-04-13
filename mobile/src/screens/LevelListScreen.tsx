@@ -48,6 +48,11 @@ function isNewLevel(dateAdded: string): boolean {
   return now - added < NEW_LEVEL_DAYS * 24 * 60 * 60 * 1000;
 }
 
+function extractLevelN(levelId: string): number {
+  const m = levelId.match(/-(A1|A2|B1|B2|C1|C2)-(\d+)$/);
+  return m ? parseInt(m[2], 10) : 1;
+}
+
 export function LevelListScreen({ route, navigation }: Props) {
   const { topicId } = route.params;
   const theme = useTheme();
@@ -99,6 +104,8 @@ export function LevelListScreen({ route, navigation }: Props) {
     const isComplete = item.mastered_count >= item.total_phrases && item.total_phrases > 0;
     const diffColor = difficultyColor(item.difficulty, theme);
     const isNew = isNewLevel(item.date_added) && !seenLevelIds.includes(item.id);
+    const levelN = extractLevelN(item.id);
+    const displayTitle = `${item.title} ${levelN}`;
 
     return (
       <TouchableOpacity
@@ -131,7 +138,7 @@ export function LevelListScreen({ route, navigation }: Props) {
         </View>
 
         <Text style={[styles.levelTitle, isComplete && styles.levelTitleComplete]}>
-          {item.title}
+          {displayTitle}
         </Text>
         {!!item.description && (
           <Text style={styles.levelDescription} numberOfLines={2}>

@@ -21,6 +21,8 @@ const META_TEST: Record<string, any> = {
   difficulty: 'A1',
   dateAdded: '2024-01-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const META_INTERM: Record<string, any> = {
@@ -30,6 +32,8 @@ const META_INTERM: Record<string, any> = {
   difficulty: 'A2',
   dateAdded: '2024-02-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const META_ADV: Record<string, any> = {
@@ -39,6 +43,8 @@ const META_ADV: Record<string, any> = {
   difficulty: 'B1',
   dateAdded: '2024-03-01',
   source: 'bundled',
+  schemaVersion: 1,
+  updatedAt: '2026-01-01T00:00:00',
 };
 
 const FIVE_PHRASES = [
