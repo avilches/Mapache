@@ -585,7 +585,7 @@ def _browse_level_actions(lv: dict) -> None:
     ]
     if lv["has_phrases"]:
         choices.append(questionary.Choice(title="Generar audio faltante", value="audio"))
-    if lv["status"] == st_mod.ST_COMPLETE:
+    if lv["has_phrases"]:
         choices.append(questionary.Choice(title="Ampliar (nuevo batch)", value="expand"))
     choices.append(questionary.Choice(title="Cancelar", value=_BACK))
 
