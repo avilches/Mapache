@@ -44,7 +44,12 @@ function AppNavigator() {
   );
 }
 
-type LoadStatus = { message: string; progress: number };
+type LoadStatus = {
+  message: string;
+  progress: number;
+  zipId?: string;
+  zipProgress?: number;
+};
 
 export default function App() {
   const [ready, setReady] = useState(false);
@@ -61,7 +66,11 @@ export default function App() {
         setStatus({ message: 'Preparando niveles…', progress: 0.3 });
         await extractBundledLevels((p: ExtractProgress) => {
           const frac = 0.3 + 0.6 * (p.current / p.total);
-          setStatus({ message: `Extrayendo ${p.levelId}…`, progress: frac });
+          const zipProgress =
+            p.zipCurrent != null && p.zipTotal != null && p.zipTotal > 0
+              ? p.zipCurrent / p.zipTotal
+              : undefined;
+          setStatus({ message: `Extrayendo ${p.levelId}…`, progress: frac, zipId: p.levelId, zipProgress });
         });
         setStatus({ message: 'Escaneando niveles…', progress: 0.95 });
         await scanInstalledLevels();
@@ -73,6 +82,8 @@ export default function App() {
     })();
   }, []);
 
+  const zipPct = status.zipProgress != null ? Math.round(status.zipProgress * 100) : 0;
+
   return (
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
@@ -83,6 +94,17 @@ export default function App() {
               <View style={[bootStyles.barFill, { width: `${Math.round(status.progress * 100)}%` }]} />
             </View>
             <Text style={bootStyles.message}>{status.message}</Text>
+            {status.zipId != null && (
+              <View style={bootStyles.zipBlock}>
+                <View style={bootStyles.zipHeader}>
+                  <Text style={bootStyles.zipLabel}>{status.zipId}</Text>
+                  <Text style={bootStyles.zipPct}>{zipPct}%</Text>
+                </View>
+                <View style={bootStyles.zipTrack}>
+                  <View style={[bootStyles.zipFill, { width: `${zipPct}%` }]} />
+                </View>
+              </View>
+            )}
           </View>
         ) : (
           <AppNavigator />
@@ -123,5 +145,38 @@ const bootStyles = StyleSheet.create({
   message: {
     color: '#657b83',
     fontSize: 13,
+  },
+  zipBlock: {
+    width: '100%',
+    gap: 6,
+    marginTop: 4,
+  },
+  zipHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  zipLabel: {
+    color: '#93a1a1',
+    fontSize: 11,
+    fontFamily: 'monospace',
+    flexShrink: 1,
+  },
+  zipPct: {
+    color: '#586e75',
+    fontSize: 11,
+    marginLeft: 8,
+  },
+  zipTrack: {
+    width: '100%',
+    height: 4,
+    backgroundColor: '#073642',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  zipFill: {
+    height: '100%',
+    backgroundColor: '#2aa198',
+    borderRadius: 2,
   },
 });

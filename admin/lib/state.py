@@ -52,7 +52,6 @@ def _compute_level_info(dir_name: str, known_topic_ids: Optional[set[str]] = Non
         "topic_id": None,
         "level_id": None,
         "cefr": None,
-        "n": None,
         "has_meta": False,
         "has_phrases": False,
         "phrase_count": 0,
@@ -67,7 +66,7 @@ def _compute_level_info(dir_name: str, known_topic_ids: Optional[set[str]] = Non
     if parsed is None:
         info["status"] = ST_INVALID_ID
         return info
-    info["topic_id"], info["level_id"], info["cefr"], info["n"] = parsed
+    info["topic_id"], info["level_id"], info["cefr"] = parsed
 
     level_dir = os.path.join(LEVELS_DIR, dir_name)
     meta_path = os.path.join(level_dir, "meta.json")
@@ -164,13 +163,8 @@ def _compute_import_diff(import_data: list, existing_topics: list[dict], existin
         for lv in t.get("levels", []):
             level_id = lv["id"]
             cefr = lv["difficulty"]
-            n = lv.get("n")
-            if n is not None:
-                exact_id = f"{topic_id}-{level_id}-{cefr}-{n}"
-                already_exists = exact_id in existing_dirs
-            else:
-                prefix = f"{topic_id}-{level_id}-{cefr}-"
-                already_exists = any(d.startswith(prefix) for d in existing_dirs)
+            exact_id = f"{topic_id}-{level_id}-{cefr}"
+            already_exists = exact_id in existing_dirs
             if already_exists:
                 levels_already_ok += 1
                 continue
@@ -181,7 +175,6 @@ def _compute_import_diff(import_data: list, existing_topics: list[dict], existin
                 "title": lv["title"],
                 "description": lv.get("description", ""),
                 "prompt": lv.get("prompt", ""),
-                "n": n,
             })
 
     levels_to_create.sort(key=lambda l: f"{l['topic_id']}-{l['level_id']}-{l['cefr']}")

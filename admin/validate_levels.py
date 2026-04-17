@@ -36,7 +36,7 @@ TOPICS_JSON = os.path.join(ROOT, "admin", "topics.json")
 REQUIRED_META_FIELDS = {"id", "topicId", "title", "description", "difficulty", "dateAdded"}
 VALID_DIFFICULTIES = {'A1', 'A2', 'B1', 'B2', 'C1', 'C2'}
 PACK_NAME_RE = re.compile(
-    r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(?:A1|A2|B1|B2|C1|C2)-\d+$"
+    r"^[a-z][a-z0-9]*(?:-[a-z0-9]+)*-[a-z][a-z0-9]*(?:-[a-z0-9]+)*-(?:A1|A2|B1|B2|C1|C2)$"
 )
 BUNDLED_ZIPS_RE = re.compile(
     r"// ─── BUNDLED ZIPS.*?// ─── END BUNDLED ZIPS", re.DOTALL
@@ -133,7 +133,7 @@ def validate_admin_levels(valid_topic_ids: set[str] | None = None) -> tuple[list
         # Convención de nombre
         if not PACK_NAME_RE.match(pack_id):
             errors.append(
-                "nombre no sigue la convención <topicId>-<levelId>-<A1|A2|B1|B2|C1|C2>-<número>"
+                "nombre no sigue la convención <topicId>-<levelId>-<A1|A2|B1|B2|C1|C2>"
             )
 
         # meta.json

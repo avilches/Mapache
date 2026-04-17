@@ -129,16 +129,22 @@ function base64ToUint8(b64: string): Uint8Array {
   return bytes;
 }
 
-async function extractZipBytes(bytes: Uint8Array, destDir: string): Promise<void> {
-  const files = unzipSync(bytes);
-  for (const [filePath, data] of Object.entries(files)) {
-    if (filePath.endsWith('/')) continue;
+async function extractZipBytes(
+  bytes: Uint8Array,
+  destDir: string,
+  onFileProgress?: (current: number, total: number) => void,
+): Promise<void> {
+  const allFiles = Object.entries(unzipSync(bytes)).filter(([p]) => !p.endsWith('/'));
+  const total = allFiles.length;
+  for (let i = 0; i < allFiles.length; i++) {
+    const [filePath, data] = allFiles[i];
     const fullPath = destDir + filePath;
     const dir = fullPath.substring(0, fullPath.lastIndexOf('/') + 1);
     await FileSystem.makeDirectoryAsync(dir, { intermediates: true }).catch(() => {});
     await FileSystem.writeAsStringAsync(fullPath, uint8ToBase64(data), {
       encoding: FileSystem.EncodingType.Base64,
     });
+    onFileProgress?.(i + 1, total);
   }
 }
 
@@ -202,6 +208,8 @@ export type ExtractProgress = {
   levelId: string;
   current: number;
   total: number;
+  zipCurrent?: number;
+  zipTotal?: number;
 };
 
 export async function extractBundledLevels(
@@ -241,7 +249,9 @@ export async function extractBundledLevels(
     const zipB64 = await FileSystem.readAsStringAsync(asset.localUri!, {
       encoding: FileSystem.EncodingType.Base64,
     });
-    await extractZipBytes(base64ToUint8(zipB64), levelsDir);
+    await extractZipBytes(base64ToUint8(zipB64), levelsDir, (zipCurrent, zipTotal) => {
+      onProgress?.({ levelId, current: i + 1, total, zipCurrent, zipTotal });
+    });
   }
 }
 

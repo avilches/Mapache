@@ -1,13 +1,13 @@
 """Escaneo, parseo de IDs y creación de directorios de level.
 
-Convención de ID: {topicId}-{levelId}-{CEFR}-{N}
+Convención de ID: {topicId}-{levelId}-{CEFR}
   - topicId y levelId: kebab-case (solo [a-z0-9-], empezar por letra)
+  - levelId incluye el número de batch al final (ej. 'loose-phrases-1')
   - CEFR: A1|A2|B1|B2|C1|C2
-  - N: entero >= 1
 
 El separador entre segmentos es `-`, igual que dentro de topicId/levelId
 (kebab-case). Por eso el parseo necesita conocer los topic ids válidos
-para desambiguar. Se extrae CEFR+N desde la derecha y luego se prueba
+para desambiguar. Se extrae CEFR desde la derecha y luego se prueba
 cada topic id como prefijo del resto.
 """
 import json
@@ -18,15 +18,15 @@ from typing import Optional
 
 from .paths import CEFR_LEVELS, LEVELS_DIR
 
-# Valida forma general: algo-CEFR-N al final
-LEVEL_TAIL_RE = re.compile(r"^(?P<prefix>.+)-(?P<cefr>A1|A2|B1|B2|C1|C2)-(?P<n>\d+)$")
+# Valida forma general: algo-CEFR al final
+LEVEL_TAIL_RE = re.compile(r"^(?P<prefix>.+)-(?P<cefr>A1|A2|B1|B2|C1|C2)$")
 
 
 def parse_level_id(
     level_id: str,
     known_topic_ids: Optional[set[str]] = None,
-) -> Optional[tuple[str, str, str, int]]:
-    """Devuelve (topic_id, level_id, cefr, n) o None si no matchea.
+) -> Optional[tuple[str, str, str]]:
+    """Devuelve (topic_id, level_id, cefr) o None si no matchea.
 
     Si known_topic_ids se proporciona, desambigua el prefijo probando
     cada topic id. Si no, intenta leer topicId del meta.json del level.
@@ -34,9 +34,8 @@ def parse_level_id(
     m = LEVEL_TAIL_RE.match(level_id)
     if not m:
         return None
-    prefix = m.group("prefix")  # topicId-levelId (sin CEFR-N)
+    prefix = m.group("prefix")  # topicId-levelId (sin CEFR)
     cefr = m.group("cefr")
-    n = int(m.group("n"))
 
     # cargar topic ids si no se proporcionan
     if known_topic_ids is None:
@@ -47,7 +46,7 @@ def parse_level_id(
                     meta = json.load(f)
                 tid = meta.get("topicId", "")
                 if prefix.startswith(tid + "-") and len(prefix) > len(tid) + 1:
-                    return (tid, prefix[len(tid) + 1:], cefr, n)
+                    return (tid, prefix[len(tid) + 1:], cefr)
             except Exception:
                 pass
         return None
@@ -57,13 +56,13 @@ def parse_level_id(
         expected = tid + "-"
         if prefix.startswith(expected) and len(prefix) > len(expected):
             lid = prefix[len(expected):]
-            return (tid, lid, cefr, n)
+            return (tid, lid, cefr)
 
     return None
 
 
-def build_level_id(topic_id: str, level_id: str, cefr: str, n: int) -> str:
-    return f"{topic_id}-{level_id}-{cefr}-{n}"
+def build_level_id(topic_id: str, level_id: str, cefr: str) -> str:
+    return f"{topic_id}-{level_id}-{cefr}"
 
 
 def scan_level_dirs() -> list[str]:
@@ -92,18 +91,26 @@ def scan_levels() -> list[dict]:
     return out
 
 
-def next_level_number(
-    topic_id: str, level_id: str, cefr: str, existing_dirs: list[str]
-) -> int:
-    """Siguiente N libre para un (topic, level, cefr) dado."""
-    prefix = f"{topic_id}-{level_id}-{cefr}-"
+def level_base_and_n(level_id: str) -> "tuple[str, int] | None":
+    """Extrae (base, n) si levelId termina en -N. Ej: 'loose-phrases-1' -> ('loose-phrases', 1)"""
+    m = re.match(r"^(.+)-(\d+)$", level_id)
+    if m:
+        return m.group(1), int(m.group(2))
+    return None
+
+
+def max_batch_n(topic_id: str, base_level_id: str, cefr: str, existing_dirs: list[str]) -> int:
+    """Mayor N existente para dirs que matchean topic-base-N-cefr. Retorna 0 si ninguno."""
+    import re as _re
+    pattern = _re.compile(
+        rf"^{_re.escape(topic_id)}-{_re.escape(base_level_id)}-(\d+)-{_re.escape(cefr)}$"
+    )
     max_n = 0
     for d in existing_dirs:
-        if d.startswith(prefix):
-            suffix = d[len(prefix):]
-            if suffix.isdigit():
-                max_n = max(max_n, int(suffix))
-    return max_n + 1
+        m = pattern.match(d)
+        if m:
+            max_n = max(max_n, int(m.group(1)))
+    return max_n
 
 
 def create_level_dir(
@@ -114,21 +121,17 @@ def create_level_dir(
     description: str,
     existing_dirs: Optional[list[str]] = None,
     prompt: str = "",
-    n: Optional[int] = None,
 ) -> str:
     """Crea admin/levels/<id>/meta.json y devuelve el id completo generado.
 
     Idempotencia: el caller comprueba antes si el directorio ya existe y decide
-    si llamar o no. Si n se proporciona, se usa ese valor; si no, se calcula
-    el siguiente N libre.
+    si llamar o no. El level_id ya incluye el número de batch.
     """
     if cefr not in CEFR_LEVELS:
         raise ValueError(f"CEFR inválido: {cefr}")
 
     existing_dirs = existing_dirs if existing_dirs is not None else scan_level_dirs()
-    if n is None:
-        n = next_level_number(topic_id, level_id, cefr, existing_dirs)
-    full_id = build_level_id(topic_id, level_id, cefr, n)
+    full_id = build_level_id(topic_id, level_id, cefr)
     level_dir = os.path.join(LEVELS_DIR, full_id)
 
     if os.path.exists(level_dir):
@@ -153,5 +156,5 @@ def create_level_dir(
 
 
 def level_has_prefix(topic_id: str, level_id: str, cefr: str, existing_dirs: list[str]) -> bool:
-    prefix = f"{topic_id}-{level_id}-{cefr}-"
-    return any(d.startswith(prefix) for d in existing_dirs)
+    exact_id = f"{topic_id}-{level_id}-{cefr}"
+    return exact_id in existing_dirs
